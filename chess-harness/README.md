@@ -2,25 +2,51 @@
 
 Stage 1 will run unassisted LLMs against UCI chess engines, with saved games,
 live viewing, and benchmarks. The Python environment, package scaffold, and
-Stockfish installation are ready, along with a command-line single-game runner.
-Live viewing and batch benchmarks are later milestones.
+Stockfish integration are ready, along with a command-line single-game runner.
+Live viewing and batch benchmarks are later milestones. The setup below covers
+Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
 ## Environment
 
-Requires Python 3.12 or newer. Run these commands from this directory in PowerShell:
+Requires Python 3.12 or newer with `pip` and `venv`. Run all commands from the
+`chess-harness` directory inside your checkout. Install Python from
+[python.org](https://www.python.org/downloads/) or your platform's package manager.
+Check the version before creating the environment; some Linux distributions and
+macOS installations provide an older default Python.
+
+### Windows (PowerShell)
 
 ```powershell
+python --version
 python -m venv .venv
 .\.venv\Scripts\python.exe -m pip install -r requirements.lock.txt
 .\.venv\Scripts\python.exe -m pip install --no-deps --no-build-isolation -e .
 ```
 
-The initial environment was created with Codex's bundled Python 3.12.14 because
-Python was not on the shell's PATH. A virtual environment depends on its base
-Python installation; recreate it with your own Python if that runtime is removed.
+If your installation exposes `py` instead of `python`, use `py -3.12` for the
+first two commands (or select another installed version >=3.12).
 
 No activation or PowerShell execution-policy change is required. Use
 `.\.venv\Scripts\python.exe` to run Python in this project.
+
+### Linux and macOS (bash/zsh)
+
+```bash
+python3 --version
+python3 -m venv .venv
+./.venv/bin/python -m pip install -r requirements.lock.txt
+./.venv/bin/python -m pip install --no-deps --no-build-isolation -e .
+```
+
+If `python3` is older than 3.12, use the executable for your newer installation
+(for example, `python3.12`) for the first two commands. On Debian/Ubuntu, if venv
+creation reports that `ensurepip` is unavailable, install the matching venv package
+for your selected interpreter (for example, `python3.12-venv`). No environment
+activation is required; use `./.venv/bin/python` for subsequent commands.
+
+Create a new `.venv` on each machine; do not copy it between operating systems.
+The original Windows environment uses Codex's bundled Python 3.12.14. New checkouts
+can use their own Python installation and do not require Codex.
 
 ## Dependencies
 
@@ -33,19 +59,89 @@ records the exact installed versions for this setup, including build tooling.
 The model runs in the separate Ollama service. This environment does not need
 PyTorch or a CUDA toolkit. Stockfish runs on the CPU.
 
+## Ollama
+
+Install Ollama using its official instructions for
+[Windows](https://docs.ollama.com/windows),
+[Linux](https://docs.ollama.com/linux), or
+[macOS](https://docs.ollama.com/macos).
+Start the desktop app or your installed Ollama service. If neither is running,
+run `ollama serve` in a separate terminal and leave it open.
+
+With the server running, download the model from another terminal (all platforms):
+
+```text
+ollama pull qwen3.5:9b
+ollama list
+```
+
+The harness connects to `http://localhost:11434` by default. Use `--url URL` for
+another reachable Ollama server. Local inference speed and memory requirements
+depend on your hardware; the RTX 5070 measurements from development do not apply
+to every machine. Ollama's macOS documentation lists GPU support for Apple silicon
+and CPU-only support for Intel Macs.
+
 ## Stockfish
 
-Stockfish 19's official Windows x86-64 universal build is installed under
-`engines/stockfish-19/`. The archive was checked against the release's SHA-256
-digest. Download provenance and the executable path are in `stockfish-install.json`.
-The extracted distribution retains its license and accompanying files.
-Engine downloads are ignored by Git and must be installed separately on a new checkout.
+Engine downloads are ignored by Git and must be installed separately on every new
+checkout. Obtain a build for your operating system and CPU architecture from the
+[official Stockfish download page](https://stockfishchess.org/download/).
+For comparisons with the initial baseline, select the
+[Stockfish 19 release](https://github.com/official-stockfish/Stockfish/releases/tag/sf_19).
+Keep the distribution's license and accompanying files with the engine.
+
+**Both the runner and check script currently default to a Windows `.exe` path.**
+On Linux and macOS, pass `--engine` with an actual executable file path on every
+invocation. A bare command name such as `--engine stockfish` is not resolved
+through PATH by the current implementation.
+
+### Windows
+
+The development installation uses the Stockfish 19 Windows x86-64 universal
+archive, extracted into `engines/stockfish-19/`, with the executable at
+`engines/stockfish-19/stockfish/stockfish-windows-x86-64-universal.exe`.
+Its verified archive digest and download URL are in `stockfish-install.json`;
+that file documents the Windows artifact only.
+On a new checkout, download and extract the same archive into that directory,
+or pass `--engine "C:\path\to\stockfish.exe"` for your own installation.
 
 Check the engine from this directory:
 
 ```powershell
 .\.venv\Scripts\python.exe scripts\check_stockfish.py
 ```
+
+### Linux
+
+Download and extract the Linux build matching your CPU. Set `STOCKFISH` to the
+extracted executable's absolute path; replace the placeholder below:
+
+```bash
+STOCKFISH="/absolute/path/to/stockfish-executable"
+chmod +x "$STOCKFISH"
+./.venv/bin/python scripts/check_stockfish.py --engine "$STOCKFISH"
+```
+
+A distribution-installed Stockfish also works. If it is on PATH, use
+`STOCKFISH="$(command -v stockfish)"`; otherwise use its full path (some
+distributions install it in `/usr/games/stockfish`). Package-manager versions
+may differ from Stockfish 19; the check prints the engine identity.
+
+### macOS
+
+If you use [Homebrew](https://brew.sh/), install its
+[Stockfish formula](https://formulae.brew.sh/formula/stockfish):
+
+```bash
+brew install stockfish
+STOCKFISH="$(brew --prefix stockfish)/bin/stockfish"
+./.venv/bin/python scripts/check_stockfish.py --engine "$STOCKFISH"
+```
+
+Alternatively, obtain a compatible macOS build from the official download page
+and set `STOCKFISH` to its executable's absolute path as in the Linux example.
+Homebrew may install a newer version as releases change. Use the same engine
+version and options across benchmark comparisons.
 
 The check uses one CPU thread, 64 MiB hash, and a 10,000-node search. It verifies
 a legal opening move and prints the engine's supported strength controls.
@@ -54,11 +150,20 @@ the game runner exposes separate match strength and search budget options.
 
 ## Run a game
 
-Start Ollama with `qwen3.5:9b` installed, then run:
+Start Ollama with `qwen3.5:9b` installed, then run on **Windows**:
 
 ```powershell
 .\.venv\Scripts\python.exe -m chess_harness
 ```
+
+On **Linux or macOS**, use the `STOCKFISH` variable set above in the same terminal:
+
+```bash
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH"
+```
+
+If you open another terminal, set `STOCKFISH` again or supply the full executable
+path directly. Quote paths so directory names containing spaces work correctly.
 
 Defaults: LLM plays White, thinking disabled, 4,096-token context, 64 output
 tokens, 60-second deadline per LLM turn, and no retries. Stockfish uses skill 0,
@@ -67,11 +172,22 @@ opponent and is not a human Elo rating. Warm-up has a separate 180-second timeou
 
 For a short smoke test or a different configuration:
 
+**Windows:**
+
 ```powershell
 .\.venv\Scripts\python.exe -m chess_harness --max-plies 8
 .\.venv\Scripts\python.exe -m chess_harness --llm-color black --engine-skill 5
 .\.venv\Scripts\python.exe -m chess_harness --think --tokens 2048 --move-seconds 120
 .\.venv\Scripts\python.exe -m chess_harness --help
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --max-plies 8
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --llm-color black --engine-skill 5
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --think --tokens 2048 --move-seconds 120
+./.venv/bin/python -m chess_harness --help
 ```
 
 The referee supplies FEN, a text board, and SAN history, but no legal moves or
@@ -96,6 +212,18 @@ failure; completed games, forfeits and deliberate truncation return 0.
 
 Run the focused referee and deadline checks:
 
+**Windows:**
+
 ```powershell
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m unittest discover -s tests -v
+```
+
+These tests use scripted players and mocked HTTP requests, so they do not require
+a running Ollama service or an installed Stockfish executable. The separate
+`check_stockfish.py` command exercises your real engine installation.

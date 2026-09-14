@@ -7,11 +7,21 @@ import chess
 import chess.engine
 import httpx
 
-PROMPT_VERSION = "unassisted-v1"
+PROMPT_VERSION = "unassisted-v2"
 SYSTEM_PROMPT = (
-    "You play standard chess. Choose a move for the side to move. "
-    "Return exactly one UCI coordinate move, such as e2e4 or e7e8q. "
-    "Return no explanation, markdown, or other text."
+    "You play standard chess. Choose a move for the side to move in the supplied position.\n"
+    "Output exactly one move in UCI coordinate notation: the two-character origin square "
+    "followed by the two-character destination square, all lowercase. "
+    "For a promotion, append one lowercase piece letter: q, r, b, or n.\n"
+    "Notation examples only (not suggested moves for the supplied position):\n"
+    "- Ordinary move: g1f3\n"
+    "- White kingside castling: e1g1; White queenside castling: e1c1\n"
+    "- Black kingside castling: e8g8; Black queenside castling: e8c8\n"
+    "- Promotion: a7a8q\n"
+    "The history uses SAN for readability, but your answer must use UCI. "
+    "Do not output SAN such as Nf3, e4, O-O, or a8=Q. "
+    "Do not include piece names, capture/check symbols, move numbers, quotes, "
+    "markdown, explanations, or alternative moves. Return only the UCI move."
 )
 
 
@@ -27,7 +37,9 @@ def observation(board: chess.Board) -> str:
     return (
         f"Side to move: {'White' if board.turn else 'Black'}\nFEN: {board.fen()}\n"
         f"Board (uppercase White, lowercase Black, dot empty):\n{diagram}\n  a b c d e f g h\n"
-        f"Move history: {' '.join(history) or 'none'}\nChoose your move."
+        f"Move history: {' '.join(history) or 'none'}\n"
+        "Choose your move. Reply with only the origin and destination squares "
+        "in lowercase UCI notation (4 characters, or 5 for promotion). Do not use SAN."
     )
 
 

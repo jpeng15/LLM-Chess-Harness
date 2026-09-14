@@ -44,7 +44,7 @@ class GameTests(unittest.TestCase):
 
     def test_illegal_and_malformed_forfeits(self):
         for move, reason in (("e2e5", "illegal_move"), ("I choose e2e4", "malformed_response"),
-                             ("0000", "malformed_response")):
+                             ("0000", "malformed_response"), ("Nf3", "malformed_response")):
             with self.subTest(move=move):
                 result = self.run_case([move])
                 self.assertEqual((result["status"], result["result"], result["reason"]),

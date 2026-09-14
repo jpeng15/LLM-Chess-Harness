@@ -194,6 +194,15 @@ The referee supplies FEN, a text board, and SAN history, but no legal moves or
 tools. Each turn is a fresh request. Only surrounding whitespace is ignored:
 prose, invalid notation, and illegal moves cause a forfeit. LLM deadlines also
 cause forfeits; engine or service failures are recorded as infrastructure failures.
+
+The current prompt is `unassisted-v2`: it explains origin/destination notation,
+provides fixed notation examples for ordinary moves, castling and promotion,
+explicitly forbids SAN, and repeats the UCI requirement after the position.
+Examples are independent of the position and are not legal-move suggestions.
+The original `unassisted-v1` run remains in its own run directory; each manifest
+records the prompt version and each move-request event stores the exact messages.
+Strict validation, assistance level and retry policy are unchanged between versions.
+
 An HTTP deadline cancels the client request; immediate server-side cancellation
 depends on Ollama. No replacement request is submitted after a timeout.
 

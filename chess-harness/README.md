@@ -2,8 +2,8 @@
 
 Stage 1 will run unassisted LLMs against UCI chess engines, with saved games,
 live viewing, and benchmarks. The Python environment, package scaffold, and
-Stockfish integration are ready, along with a command-line single-game runner.
-Live viewing and batch benchmarks are later milestones. The setup below covers
+Stockfish integration are ready, along with a command-line single-game runner
+and a local browser viewer with replay. Batch benchmarks are a later milestone. The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
 ## Environment
@@ -147,6 +147,52 @@ The check uses one CPU thread, 64 MiB hash, and a 10,000-node search. It verifie
 a legal opening move and prints the engine's supported strength controls.
 Use `--engine PATH` to check another UCI executable. These are smoke-check settings;
 the game runner exposes separate match strength and search budget options.
+
+## Watch games in your browser
+
+Start the viewer from the project directory and leave it running:
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.viewer
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness.viewer
+```
+
+Open [the local viewer](http://127.0.0.1:8765), then run a game in a second
+terminal using the commands below. The viewer defaults to **Follow newest game**,
+so it also picks up games started after you opened the page. Select a run from
+the menu to inspect an older game.
+
+- The board shows the last legal position, highlights the previous move and check,
+  and can be flipped to view either side from the bottom.
+- Status shows the active player and elapsed thinking time, or the final outcome.
+- The move list, slider, previous/next buttons, and **Play replay** control playback.
+  **Live** resumes following the selected game's latest position. Replay controls
+  never pause or change the actual game.
+- Responses show each player's exact returned text and elapsed time, newest first.
+  Rejected responses are retained and marked as not applied to the board. Separate
+  thinking output is expandable when the model returns it. Responses and game status
+  always show the latest received events, even while you replay an earlier position.
+- The viewer polls saved events about every 0.7 seconds and automatically retries
+  failed connections. Fast games may finish between updates; all recorded moves
+  remain available for replay. An old event is flagged as potentially stale rather
+  than treated as proof that the runner is still alive.
+
+This is a read-only viewer, served on `127.0.0.1` with no remote assets or new Python
+dependencies. Closing the page or stopping the viewer leaves games running.
+Ctrl+C in the viewer terminal stops only the viewer; Ctrl+C in the game terminal
+interrupts the game. The viewer has no game-start or game-stop controls.
+
+Use `--port 8766` if 8765 is occupied, or `--runs /path/to/runs` to read a different
+output directory. If you run games with `--output`, point the viewer's `--runs`
+at that same directory. The viewer needs the manifest and event log; a PGN alone
+does not contain model responses and is not currently importable.
 
 ## Run a game
 

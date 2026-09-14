@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chess Harness · Live & Replay</title><link rel="stylesheet" href="/style.css"><script defer src="/app.js"></script></head>
+<body>
+<header><div class="brand"><span class="mark">♞</span><div><h1>Chess Harness</h1><span class="sub">Unassisted · Local games</span></div></div><span id="connection" role="status">Connecting…</span></header>
+<main>
+<section class="toolbar"><label for="games">Game</label><select id="games"><option value="latest">Follow newest game</option></select><button id="flip">Flip board</button></section>
+<p id="notice" role="status">Looking for saved games…</p>
+<div class="workspace">
+<section class="play-area" aria-label="Chessboard and replay">
+<div class="player"><span id="top-piece">●</span><strong id="top-player">Black</strong><span id="top-color">Black</span></div>
+<img id="board" src="/api/board" alt="Chessboard, starting position" width="640" height="640">
+<div class="player"><span id="bottom-piece">○</span><strong id="bottom-player">White</strong><span id="bottom-color">White</span></div>
+<div class="replay"><button id="first" aria-label="Starting position">|‹</button><button id="prev" aria-label="Previous move">‹</button><button id="play">Play replay</button><button id="next" aria-label="Next move">›</button><button id="end" aria-label="Final position">›|</button><button id="live" class="accent" aria-pressed="true">Live</button></div>
+<label class="timeline" for="position"><span id="position-label">Starting position</span><input id="position" type="range" min="0" max="0" value="0"></label>
+</section>
+<aside>
+<section class="panel"><div class="section-title"><h2 id="status">Waiting for a game</h2><span id="result"></span></div><p id="detail">Start the runner in another terminal.</p><div class="facts"><span id="prompt">—</span><span id="thinking">—</span></div><p id="freshness" class="sub"></p></section>
+<section class="panel"><div class="section-title"><h2>Moves</h2><span class="sub">Select to replay</span></div><div id="moves" class="moves"><p class="sub">No moves yet.</p></div></section>
+<section class="panel responses-panel"><div class="section-title"><h2>Responses</h2><span id="response-count" class="sub"></span></div><div id="responses"><p class="sub">Responses appear after each turn.</p></div></section>
+</aside>
+</div>
+<details class="position-info"><summary>Position FEN</summary><code id="fen"></code></details>
+</main>
+</body></html>

@@ -65,6 +65,9 @@ Install Ollama using its official instructions for
 [Windows](https://docs.ollama.com/windows),
 [Linux](https://docs.ollama.com/linux), or
 [macOS](https://docs.ollama.com/macos).
+The harness requires stable Ollama **0.34.0 or newer** for its strict context
+controls. Older, unrecognized and prerelease version strings stop initialization;
+unknown request fields on older servers can otherwise be silently ignored.
 Start the desktop app or your installed Ollama service. If neither is running,
 run `ollama serve` in a separate terminal and leave it open.
 
@@ -255,8 +258,45 @@ depends on Ollama. No replacement request is submitted after a timeout.
 Rules-based draws are automatically claimed, including claims available by making
 a move. Games stop at 300 plies by default, recorded as truncated with result `*`.
 `--fen` supports alternative starts, but repetition history before that FEN is unknown.
-Context must accommodate the growing history and any thinking output; long-game
-context sizing and runtime truncation detection remain to be hardened before batch benchmarks.
+Context must accommodate the growing history and any thinking output. The harness
+never shortens the history or automatically retries with a larger budget.
+
+### Context and generation limits
+
+Every move request sends `truncate: false` and `shift: false`, so the server must
+retain the supplied prompt rather than discard context to make room. These controls
+are defined in [Ollama's request API](https://github.com/ollama/ollama/blob/v0.34.0/api/types.go).
+After warm-up, the runner checks `/api/ps` and records the loaded model's effective
+context, digest and memory information in the manifest. A context size that differs
+from `--context` stops initialization as `context_size_mismatch`. For example, the
+tested server clamps a request for 512 tokens to 2,048; specify the intended supported
+size explicitly instead. `--tokens` must be smaller than `--context`.
+
+| Evidence | Recorded outcome |
+|---|---|
+| Explicit server context-overflow error | `truncated` / `context_limit`, result `*` |
+| `done_reason: length` and generated-token count reaches the requested budget | `forfeit` / `output_limit` |
+| `done_reason: length` without evidence that the output budget was reached | `truncated` / `generation_limit`, result `*` |
+| Missing completion, unknown stop reason, malformed server data or connection failure | `infrastructure_failure`, result `*` |
+| Normal `stop` with invalid move text | Existing malformed-response or illegal-move forfeit |
+
+A length-limited answer is never applied, even if its partial text happens to be
+a complete legal move. Thinking output consumes the backend's generation budget;
+it can exhaust that budget before a final move is produced. The raw response and
+its counters are saved. Ambiguous limits remain unscored instead of being guessed
+from token estimates. Context and generation truncations should be excluded from
+completed-game scores and reported separately.
+
+The manifest records `strict-limits-v1` separately from the prompt version, so runs
+with older limit policies can be distinguished. Structured server failures appear
+in `move_failed` events; received partial responses, errors and elapsed time are
+retained when available and displayed by the viewer. A connection failure before
+the non-streaming response arrives cannot preserve tokens the server never sent.
+
+The controls were tested with local GGUF inference on Ollama 0.34.0. Other backends
+and future versions still need validation; matching a version floor alone does not
+establish identical behavior. If a backend reports an unfamiliar context error,
+it remains an infrastructure failure with the original error saved.
 
 Each run has its own directory under `runs/`, containing `manifest.json` (configuration,
 model inventory/digests and versions), `events.jsonl` (requests, raw responses and timing),
@@ -282,3 +322,13 @@ Run the focused referee and deadline checks:
 These tests use scripted players and mocked HTTP requests, so they do not require
 a running Ollama service or an installed Stockfish executable. The separate
 `check_stockfish.py` command exercises your real engine installation.
+
+Optional JavaScript controller regression checks (Node.js, no npm packages required):
+
+```text
+node --test tests/test_viewer_ui.cjs
+```
+
+The viewer has also been checked in the Windows in-app browser, including replay,
+live event updates and recovery after a server outage. See
+[the browser validation record](docs/viewer-validation.md) for coverage and limits.

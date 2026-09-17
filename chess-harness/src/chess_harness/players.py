@@ -7,6 +7,8 @@ import chess
 import chess.engine
 import httpx
 
+from .limits import PlayerFailure, context_error, cutoff_reason
+
 PROMPT_VERSION = "unassisted-v2"
 SYSTEM_PROMPT = (
     "You play standard chess. Choose a move for the side to move in the supplied position.\n"
@@ -48,6 +50,7 @@ class Reply:
     text: str
     elapsed: float
     raw: dict
+    failure_reason: str | None = None
 
 
 class OllamaPlayer:
@@ -58,6 +61,7 @@ class OllamaPlayer:
     def request(self, board):
         return {
             "model": self.name, "stream": False, "think": self.config["think"],
+            "truncate": False, "shift": False,
             "keep_alive": "30m",
             "options": {"num_ctx": self.config["context"], "num_predict": self.config["tokens"],
                         "temperature": self.config["temperature"], "seed": self.config["seed"]},
@@ -70,24 +74,59 @@ class OllamaPlayer:
         async with asyncio.timeout(seconds):
             async with httpx.AsyncClient(base_url=self.config["url"], timeout=None, trust_env=False) as client:
                 response = await client.post(path, json=body)
-                response.raise_for_status()
-                data = response.json()
-                if data.get("error"):
-                    raise RuntimeError(data["error"])
+                try:
+                    data = response.json()
+                except ValueError as exc:
+                    raise PlayerFailure("invalid_server_response", "Ollama returned non-JSON data.",
+                                        raw={"http_status": response.status_code, "body": response.text}) from exc
+                if response.is_error or (isinstance(data, dict) and data.get("error")):
+                    reason = "context_limit" if context_error(data) else "ollama_http_error"
+                    raise PlayerFailure(reason, f"Ollama request failed (HTTP {response.status_code}): {data}",
+                                        raw={"http_status": response.status_code, "body": data})
+                if not isinstance(data, dict):
+                    raise PlayerFailure("invalid_server_response", "Ollama returned a non-object JSON response.", raw=data)
                 return data
 
     def warmup(self):
         return asyncio.run(self._post("/api/generate", {
             "model": self.name, "prompt": "", "stream": False, "keep_alive": "30m",
+            "truncate": False, "shift": False,
             "options": {"num_ctx": self.config["context"]},
         }, 180))
 
     def choose(self, board):
         start = time.monotonic()
-        data = asyncio.run(self._post("/api/chat", self.request(board), self.config["seconds"]))
-        if not data.get("done") or not isinstance(data.get("message", {}).get("content"), str):
-            raise RuntimeError("Incomplete or unexpected Ollama response")
-        return Reply(data["message"]["content"], time.monotonic() - start, data)
+        try:
+            data = asyncio.run(self._post("/api/chat", self.request(board), self.config["seconds"]))
+        except PlayerFailure as exc:
+            exc.elapsed_seconds = time.monotonic() - start
+            raise
+        except httpx.TransportError as exc:
+            raise PlayerFailure("ollama_transport_error", str(exc), elapsed_seconds=time.monotonic() - start) from exc
+        elapsed = time.monotonic() - start
+        message = data.get("message")
+        if data.get("done") is not True or not isinstance(message, dict) or not isinstance(message.get("content"), str):
+            raise PlayerFailure("incomplete_response", "Incomplete or unexpected Ollama response.", raw=data, elapsed_seconds=elapsed)
+        if data.get("done_reason") not in ("stop", "length"):
+            raise PlayerFailure("unknown_stop_reason", "Ollama did not report a recognized completion reason.", raw=data, elapsed_seconds=elapsed)
+        return Reply(message["content"], elapsed, data, cutoff_reason(data, self.config["tokens"]))
+
+    def verify_loaded_context(self):
+        with httpx.Client(base_url=self.config["url"], timeout=10, trust_env=False) as client:
+            response = client.get("/api/ps")
+            response.raise_for_status()
+            data = response.json()
+        canonical = self.name if ":" in self.name.rsplit("/", 1)[-1] else self.name + ":latest"
+        models = data.get("models", []) if isinstance(data, dict) else []
+        loaded = next((model for model in models if model.get("name") in (self.name, canonical)
+                       or model.get("model") in (self.name, canonical)), None)
+        if loaded is None or type(loaded.get("context_length")) is not int:
+            raise PlayerFailure("context_verification_failed", "Ollama did not report the loaded model's context size.", raw=data)
+        if loaded["context_length"] != self.config["context"]:
+            raise PlayerFailure("context_size_mismatch",
+                                f"Requested {self.config['context']} context tokens, but Ollama loaded {loaded['context_length']}. "
+                                "Choose a supported --context value and start a new run.", raw=loaded)
+        return loaded
 
 
 class EnginePlayer:

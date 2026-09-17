@@ -43,9 +43,11 @@ function renderData(){
     const row=document.createElement('article');row.className='response'+(response.applied?'':' pending');
     const meta=document.createElement('div');meta.className='response-meta';
     const who=document.createElement('span');who.textContent=`${response.player} · ply ${response.ply}`;
-    const elapsed=document.createElement('span');elapsed.textContent=`${response.seconds.toFixed(2)}s`;
+    const elapsed=document.createElement('span');elapsed.textContent=Number.isFinite(response.seconds)?`${response.seconds.toFixed(2)}s`:'Timing unavailable';
     meta.append(who,elapsed);const output=document.createElement('pre');output.textContent=response.text||'(empty response)';row.append(meta,output);
     if(!response.applied){const label=document.createElement('div');label.className='sub';label.textContent=summary?'Not applied to board':'Awaiting validation';row.append(label);}
+    if(response.failure_reason){const reason=document.createElement('div');reason.className='sub';reason.textContent=response.failure_reason.replaceAll('_',' ');row.append(reason);}
+    if(response.error){const error=document.createElement('pre');error.textContent=response.error;row.append(error);}
     if(response.thinking){const details=document.createElement('details'),title=document.createElement('summary'),reasoning=document.createElement('pre');title.textContent='Thinking output';reasoning.textContent=response.thinking;details.append(title,reasoning);row.append(details);}
     $('responses').append(row);
   }
@@ -75,9 +77,12 @@ async function poll(){
     text('notice',data.id+' · Board controls affect replay only; the game keeps running.');
     const key=JSON.stringify([data.id,data.sequence,data.summary,data.engine_name]);
     if(key!==lastKey){renderData();lastKey=key;}
+    else if(!boardKey){renderPosition();}
   }catch(error){text('connection','Disconnected · retrying');text('notice',error.message+'; showing last received position.');}
   finally{setTimeout(poll,700);}
 }
+// A failed SVG request must be retried even if no new game event arrives.
+$('board').onerror=()=>{boardKey='';};
 $('games').onchange=()=>{selection=$('games').value;lastKey='';};
 $('flip').onclick=()=>{flipped=!flipped;renderPosition();};
 $('first').onclick=()=>seek(0);$('prev').onclick=()=>seek(index-1);$('next').onclick=()=>seek(index+1);$('end').onclick=()=>seek(data?.positions.length-1);

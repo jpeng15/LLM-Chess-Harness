@@ -7,6 +7,8 @@ import time
 import chess
 import chess.pgn
 
+from .limits import PlayerFailure
+
 
 class Recorder:
     def __init__(self, directory):
@@ -58,6 +60,7 @@ def run_game(board, players, llm_color, max_plies, recorder):
             recorder.event("move_requested", ply=plies + 1, fen=board.fen(),
                            player=player.name, request=request)
             print(f"{board.fullmove_number}{'.' if color else '...'} {player.name} thinking...", flush=True)
+            move_start = time.monotonic()
             try:
                 reply = player.choose(board.copy())
             except TimeoutError:
@@ -65,9 +68,25 @@ def run_game(board, players, llm_color, max_plies, recorder):
                     raise
                 result = "0-1" if color else "1-0"
                 status, reason = "forfeit", "timeout"
-                recorder.event("move_timeout", player=player.name)
+                recorder.event("move_timeout", player=player.name, elapsed_seconds=time.monotonic() - move_start)
                 break
-            recorder.event("move_response", text=reply.text, elapsed_seconds=reply.elapsed, raw=reply.raw)
+            except PlayerFailure as exc:
+                reason = exc.reason
+                status = "truncated" if color == llm_color and reason == "context_limit" else "infrastructure_failure"
+                recorder.event("move_failed", player=player.name, reason=reason, message=str(exc),
+                               elapsed_seconds=exc.elapsed_seconds, raw=exc.raw)
+                break
+            recorder.event("move_response", text=reply.text, elapsed_seconds=reply.elapsed,
+                           raw=reply.raw, failure_reason=reply.failure_reason)
+            if reply.failure_reason:
+                reason = reply.failure_reason
+                if color != llm_color:
+                    status = "infrastructure_failure"
+                elif reason == "output_limit":
+                    status, result = "forfeit", "0-1" if color else "1-0"
+                else:
+                    status = "truncated"
+                break
             text = reply.text.strip()
             move = chess.Move.from_uci(text) if re.fullmatch(r"[a-h][1-8][a-h][1-8][qrbn]?", text) and text[:2] != text[2:4] else None
             if move is None or move not in board.legal_moves:

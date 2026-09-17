@@ -51,11 +51,17 @@ def snapshot(directory):
         kind = event["type"]
         if kind == "move_requested":
             pending = event
-        elif kind == "move_response":
+        elif kind in ("move_response", "move_failed"):
+            raw = event.get("raw")
+            message = raw.get("message", {}) if isinstance(raw, dict) else {}
+            message = message if isinstance(message, dict) else {}
             responses.append({"player": pending["player"] if pending else "Unknown",
                               "ply": pending["ply"] if pending else len(positions),
-                              "text": event["text"], "seconds": event["elapsed_seconds"],
-                              "thinking": event.get("raw", {}).get("message", {}).get("thinking", ""),
+                              "text": event.get("text", message.get("content", "")),
+                              "seconds": event.get("elapsed_seconds"),
+                              "thinking": message.get("thinking", ""),
+                              "failure_reason": event.get("failure_reason") or event.get("reason"),
+                              "error": event.get("message") if kind == "move_failed" else None,
                               "applied": False})
             pending = None
         elif kind == "move_applied":

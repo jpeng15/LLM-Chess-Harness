@@ -11,6 +11,7 @@ import httpx
 
 from .game import Recorder, run_game
 from .players import EnginePlayer, OllamaPlayer, PROMPT_VERSION
+from .limits import LIMIT_POLICY_VERSION, PlayerFailure, require_supported_ollama
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -40,6 +41,8 @@ def main():
     parser.add_argument("--fen", default=chess.STARTING_FEN)
     parser.add_argument("--output", type=Path, default=ROOT / "runs")
     args = parser.parse_args()
+    if args.tokens >= args.context:
+        parser.error("--tokens must be smaller than --context, leaving room for the input prompt")
     try:
         board = chess.Board(args.fen)
     except ValueError as exc:
@@ -50,6 +53,9 @@ def main():
         parser.error(f"Engine does not exist: {args.engine}")
     config = {
         "mode": "unassisted", "prompt_version": PROMPT_VERSION,
+        "limit_policy": {"version": LIMIT_POLICY_VERSION, "truncate": False, "shift": False,
+                         "output_limit": "forfeit", "context_limit": "truncated",
+                         "ambiguous_generation_limit": "truncated"},
         "llm": {"model": args.model, "url": args.url, "think": args.think,
                 "seconds": args.move_seconds, "tokens": args.tokens, "context": args.context,
                 "temperature": args.temperature, "seed": args.seed},
@@ -72,18 +78,24 @@ def main():
                 response = client.get(path)
                 response.raise_for_status()
                 manifest[key] = response.json()
+        recorder.write("manifest.json", manifest)
+        require_supported_ollama(manifest["ollama_version"].get("version"))
         engine = EnginePlayer(config["engine"])
         manifest["engine_id"] = engine.engine.id
         recorder.write("manifest.json", manifest)
         llm = OllamaPlayer(config["llm"])
         print("Warming model (excluded from game timing)...", flush=True)
         recorder.event("warmup_completed", response=llm.warmup())
+        manifest["loaded_model"] = llm.verify_loaded_context()
+        recorder.write("manifest.json", manifest)
+        recorder.event("context_verified", requested=args.context,
+                       effective=manifest["loaded_model"]["context_length"])
         color = args.llm_color == "white"
         summary = run_game(board, {color: llm, not color: engine}, color, args.max_plies, recorder)
     except (Exception, KeyboardInterrupt) as exc:
         summary = {"status": "interrupted" if isinstance(exc, KeyboardInterrupt) else "infrastructure_failure",
-                   "result": "*", "reason": "initialization_failure", "error": str(exc)}
-        recorder.event("initialization_failed", **summary)
+                   "result": "*", "reason": exc.reason if isinstance(exc, PlayerFailure) else "initialization_failure", "error": str(exc)}
+        recorder.event("initialization_failed", **summary, raw=exc.raw if isinstance(exc, PlayerFailure) else None)
         recorder.write("summary.json", summary)
     finally:
         if engine is not None:

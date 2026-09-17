@@ -73,6 +73,9 @@ class ViewerTests(unittest.TestCase):
                 run_directory(self.root, name)
 
     def test_http_routes_and_incremental_reads(self):
+        batch_directory = self.root / "batches" / "test-batch"
+        batch_directory.mkdir(parents=True)
+        (batch_directory / "batch.json").write_text('{"games": []}')
         server = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(self.root))
         thread = threading.Thread(target=server.serve_forever, daemon=True)
         thread.start()
@@ -80,7 +83,7 @@ class ViewerTests(unittest.TestCase):
             with httpx.Client(base_url=f"http://127.0.0.1:{server.server_port}", trust_env=False) as client:
                 for route in ("/", "/app.js", "/style.css", "/api/board"):
                     self.assertEqual(client.get(route).status_code, 200)
-                self.assertEqual(client.get("/api/runs").json()[0]["id"], "test-run")
+                self.assertEqual([run["id"] for run in client.get("/api/runs").json()], ["test-run"])
                 self.assertEqual(client.get("/api/runs/test-run").json()["sequence"], 0)
                 self.event("move_requested", player="test", ply=1)
                 self.assertEqual(client.get("/api/runs/test-run").json()["pending"]["player"], "test")

@@ -2,8 +2,9 @@
 
 Stage 1 will run unassisted LLMs against UCI chess engines, with saved games,
 live viewing, and benchmarks. The Python environment, package scaffold, and
-Stockfish integration are ready, along with a command-line single-game runner
-and a local browser viewer with replay. Batch benchmarks are a later milestone. The setup below covers
+Stockfish integration are ready, along with single-game and sequential batch runners
+and a local browser viewer with replay. Batch resume and aggregate benchmark reports
+are later milestones. The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
 ## Environment
@@ -305,7 +306,80 @@ failures produce a manifest, events and summary without a PGN. Ctrl+C during pla
 records an interrupted game. Exit code 1 indicates interruption or infrastructure
 failure; completed games, forfeits and deliberate truncation return 0.
 
-Run the focused referee and deadline checks:
+## Run a batch
+
+The batch command runs color-balanced pairs sequentially: the LLM plays White,
+then Black, using the same starting position and seed for both games. The next
+pair increments the seed by one. `--pairs 5` means **10 games**, and is the default.
+Each game starts with a fresh board and Stockfish process. Ollama is warmed and
+its effective context is checked before each game, outside that game's timing.
+Only one game runs at a time; there are no parallel model requests from the scheduler.
+
+Start with a short two-game smoke test, then remove `--max-plies 2` for normal play:
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.batch --pairs 1 --max-plies 2
+.\.venv\Scripts\python.exe -m chess_harness.batch --pairs 5 --seed 100
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness.batch --engine "$STOCKFISH" --pairs 1 --max-plies 2
+./.venv/bin/python -m chess_harness.batch --engine "$STOCKFISH" --pairs 5 --seed 100
+```
+
+All single-game options also apply, except `--llm-color`, which the schedule controls.
+For example, `--model`, `--fen`, `--tokens`, `--context`, `--temperature`,
+`--engine-nodes`, and `--output` configure the whole batch. With `--seed 100`, the
+first pair uses 100, the second 101, and so on. Seeds are sent to Ollama; they do
+not seed Stockfish. Recorded seeds and settings do not guarantee identical
+outputs across runs or environments, or diverse games at temperature zero.
+
+Before starting any game, the runner saves the entire schedule. The output is:
+
+```text
+runs/
+  batches/<batch-id>/
+    batch.json                 # Fixed configuration, schedule, colors and seeds
+    progress.json              # Latest batch status and individual game summaries
+  <batch-id>-000001/            # First game: LLM White
+    manifest.json
+    events.jsonl
+    game.pgn
+    summary.json
+  <batch-id>-000002/            # Second game: LLM Black
+    ...
+```
+
+The schedule's color and seed override the base configuration for each game;
+each game's manifest records its effective configuration and batch/pair membership.
+`progress.json` is replaced atomically before and after each game, keeping earlier
+results and distinguishing pending games from the active game. Individual game
+events and PGNs remain the source for detailed replay. Setup failures may have
+no PGN, as with single games.
+
+Keep the existing viewer running with **Follow newest game** selected to watch
+the batch advance. The game folders use the same layout as single runs, so no
+viewer configuration change is needed. For a custom `--output`, use that directory
+as the viewer's `--runs` value. Batch metadata does not appear as a game.
+
+Completed games, forfeits, and truncations advance the schedule. Infrastructure
+failures stop it; Ctrl+C records interruption and leaves later games pending.
+Exit code 0 means the schedule finished, including any forfeits or truncations;
+exit code 1 means it stopped because of interruption or infrastructure failure.
+A batch marked `completed` does not mean every game had a scored chess result.
+
+This first version does not resume or retry games. Running the command again
+creates a new batch. A forced process kill or power loss may leave progress marked
+`running`; it is a saved checkpoint, not a liveness indicator. Automated resume
+and aggregate scoring/reporting are the next milestones.
+
+## Tests
+
+Run the referee, adapter, batch-scheduling, and viewer checks:
 
 **Windows:**
 

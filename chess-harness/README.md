@@ -3,8 +3,8 @@
 Stage 1 will run unassisted LLMs against UCI chess engines, with saved games,
 live viewing, and benchmarks. The Python environment, package scaffold, and
 Stockfish integration are ready, along with single-game and sequential batch runners
-and a local browser viewer with replay. Batches support interruption recovery;
-aggregate benchmark reports are the next milestone. The setup below covers
+and a local browser viewer with replay. Batches support interruption recovery
+and aggregate benchmark reports. The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
 ## Environment
@@ -409,6 +409,55 @@ before making a move. Changed environments, prompt versions or limit policies
 require a new batch; settings are never silently replaced during resume. Invalid
 or contradictory saved records stop recovery for inspection. Running the normal
 command without `--resume` always creates a new batch.
+
+### Report a batch
+
+After the batch stops, generate a human-readable report and machine-readable JSON:
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.report --batch "runs/batches/<batch-id>"
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness.report --batch "runs/batches/<batch-id>"
+```
+
+This prints the report and writes `report.md` and `report.json` in the batch
+directory. Use `--output /path/to/report-directory` to export elsewhere. The
+reporter holds the same batch lock as the runner, so it refuses an active batch;
+the live viewer remains available while games run. Reports do not modify game
+records or resume play. They can summarize an interrupted batch, but are saved
+snapshots: regenerate after resuming to include the new results.
+
+Reports include status and termination-reason counts, LLM wins/draws/losses overall
+and by color, legal-move rate, move latency, recorded token usage, and per-game
+results. Counts of illegal moves, malformed responses, timeouts, output limits,
+context limits and infrastructure failures remain separate termination reasons.
+
+- **Score rate:** `(wins + 0.5 * draws) / scored games`, from the LLM's perspective.
+  Completed chess games and forfeits are scored. Truncations, infrastructure
+  failures, interruptions and pending games are excluded, never counted as draws.
+- **Legal-move rate:** applied LLM moves divided by requested LLM turns. This is
+  an operational success rate: requests ending in timeout/failure are in the
+  denominator too. The raw turn counts are always included.
+- **Latency:** recorded LLM response, timeout and failure durations, excluding
+  warm-up and engine moves. Mean, median and nearest-rank p95 use the recorded
+  samples only; missing durations are not invented. The JSON includes sample count,
+  total, minimum and maximum. No samples means `null`, not zero.
+- **Attempts:** each scheduled game contributes at most its latest attempt to
+  scores and turn metrics. Superseded attempts stay on disk and are counted
+  separately, preventing retries from inflating the benchmark sample size.
+- **Tokens:** sums of the backend's reported prompt and generation counters;
+  thinking tokens are included when the backend includes them. Missing counters
+  are not estimated. The report records how many responses supplied usage.
+
+Configuration and available runtime identities accompany the JSON. A report
+warns if multiple identities or unfinished games are present. A small batch is
+a pipeline/legality check, not an Elo estimate or a statistically stable ranking.
 
 ## Tests
 

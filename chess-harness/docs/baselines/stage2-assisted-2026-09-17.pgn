@@ -1,0 +1,43 @@
+[Event "Legal-move-assisted LLM vs engine"]
+[Site "?"]
+[Date "2026.09.17"]
+[Round "?"]
+[White "qwen3.5:9b"]
+[Black "Stockfish 19"]
+[Result "0-1"]
+[Termination "illegal_move"]
+
+1. e4 e5 0-1
+
+[Event "Legal-move-assisted LLM vs engine"]
+[Site "?"]
+[Date "2026.09.17"]
+[Round "?"]
+[White "Stockfish 19"]
+[Black "qwen3.5:9b"]
+[Result "1-0"]
+[Termination "checkmate"]
+
+1. Nf3 Nc6 2. d4 d5 3. c4 b5 4. c5 b4 5. Qa4 b3 6. axb3 Bb7 7. b4 a5 8. Ne5 axb4 9. Nxc6 Rxa4 10. b3 Rxa1 11. e3 Ra2 12. Bb5 Ra1 13. e4 Qa8 14. Na5+ Kd8 15. Bd3 Kc8 16. Nxb7 Ra2 17. Nd6+ Kd7 18. Nxf7 Kc6 19. e5 Ra1 20. Bf5 Ra2 21. Nd2 Ra1 22. O-O Ra2 23. Be6 Ra1 24. Nc4 Ra2 25. h3 Ra1 26. g4 Ra2 27. Ne3 Ra1 28. Bxd5+ Kd7 29. Bxa8 Ra2 30. c6+ Ke6 31. Nd8# 1-0
+
+[Event "Legal-move-assisted LLM vs engine"]
+[Site "?"]
+[Date "2026.09.17"]
+[Round "?"]
+[White "qwen3.5:9b"]
+[Black "Stockfish 19"]
+[Result "0-1"]
+[Termination "checkmate"]
+
+1. e4 c5 2. e5 Nh6 3. Bc4 g6 4. Bd5 Qc7 5. Bc6 Qxe5+ 6. Qe2 Qxe2+ 7. Kxe2 Nxc6 8. Nc3 Rb8 9. Nb5 e5 10. Nd4 cxd4 11. Kd3 a6 12. Kc4 d5+ 13. Kd3 Kd8 14. a3 Ng4 15. Nf3 b6 16. Nxe5 Ncxe5+ 17. Kxd4 Bg7 18. Ra2 Bf5 19. c4 Re8 20. c5 Nd3+ 21. Kxd5 Be6+ 22. Kc6 Nde5+ 23. Kd6 Bf8# 0-1
+
+[Event "Legal-move-assisted LLM vs engine"]
+[Site "?"]
+[Date "2026.09.17"]
+[Round "?"]
+[White "Stockfish 19"]
+[Black "qwen3.5:9b"]
+[Result "1-0"]
+[Termination "checkmate"]
+
+1. d4 b5 2. a4 bxa4 3. Nc3 Nc6 4. e4 Nb4 5. Bb5 Nxc2+ 6. Qxc2 c5 7. dxc5 a5 8. Qd3 a3 9. Nf3 a2 10. Bd2 a4 11. Rxa2 a3 12. bxa3 Rxa3 13. Rxa3 Ba6 14. Rxa6 Qa5 15. Qxd7# 1-0

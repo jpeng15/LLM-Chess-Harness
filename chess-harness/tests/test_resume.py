@@ -16,6 +16,7 @@ import httpx
 from chess_harness import batch
 from chess_harness.cli import add_game_arguments, game_config
 from chess_harness.game import Recorder
+from chess_harness.players import prompt_version
 from chess_harness.storage import batch_lock, read_json
 from chess_harness.runner import run_match
 
@@ -87,8 +88,16 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(len(result["games"][1]["attempts"]), 2)
 
     def test_assisted_resume_preserves_mode_and_accepts_its_prompt_version(self):
-        self.config.update(mode="legal-moves", prompt_version="legal-moves-v1")
+        self.config.update(mode="legal-moves", prompt_version=prompt_version("legal-moves"))
         self.test_restart_interrupted_attempt_preserves_logs_and_settings()
+
+    def test_old_assisted_prompt_cannot_resume_under_new_prompt(self):
+        self.config.update(mode="legal-moves", prompt_version="legal-moves-v1")
+        self.start()
+        with patch("chess_harness.batch.run_match") as run:
+            with self.assertRaisesRegex(ValueError, "Prompt"):
+                self.resume()
+        run.assert_not_called()
 
     def test_terminal_event_recovers_lagging_checkpoint(self):
         self.start()

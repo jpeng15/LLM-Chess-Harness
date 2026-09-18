@@ -1,0 +1,887 @@
+{
+  "tested_commit": "b8e0eab",
+  "tested_at_utc": "2026-09-18",
+  "platform": "Windows",
+  "automated_tests": {
+    "python_passed": 56,
+    "javascript_passed": 3
+  },
+  "checks": {
+    "all_eight_game_replays": "passed",
+    "all_assisted_move_lists": "passed",
+    "completed_batch_resume_noop": "passed",
+    "viewer_replay_flip_live_mode_labels": "passed",
+    "viewer_javascript_errors": 0,
+    "wheel_build_and_assets": "passed"
+  },
+  "note": "Fresh four-game batches per mode; matched settings and runtime identity. Engine absolute paths replaced for portability. Local Stockfish randomness and different positions prevent claims of paired identical trajectories or isolated prompt-token overhead.",
+  "comparison": {
+    "assisted": {
+      "schema_version": 1,
+      "batch_id": "20260918T040426Z-502fffd3",
+      "generated_at": "2026-09-18T04:06:18.530316+00:00",
+      "config": {
+        "mode": "legal-moves",
+        "prompt_version": "legal-moves-v1",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://localhost:11434",
+          "think": false,
+          "seconds": 60,
+          "tokens": 64,
+          "context": 4096,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "max_plies": 300,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      },
+      "runtime_identities": [
+        {
+          "engine_sha256": "45bc8e4969147db9c2eb533810637994619bff0eacc81ccfd9854394901bcbd0",
+          "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "ollama_version": "0.34.1",
+          "packages": {
+            "chess": "1.11.2",
+            "httpx": "0.28.1",
+            "llm-chess-harness": "0.1.0"
+          },
+          "python": "3.12.14"
+        }
+      ],
+      "warnings": [],
+      "scheduled_games": 4,
+      "finalized_games": 4,
+      "scored_games": 4,
+      "unscored_games": 0,
+      "status_counts": {
+        "forfeit": 1,
+        "completed": 3
+      },
+      "reason_counts": {
+        "illegal_move": 1,
+        "checkmate": 3
+      },
+      "results": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 4
+      },
+      "results_by_color": {
+        "white": {
+          "wins": 0,
+          "draws": 0,
+          "losses": 2,
+          "scored": 2
+        },
+        "black": {
+          "wins": 0,
+          "draws": 0,
+          "losses": 2,
+          "scored": 2
+        }
+      },
+      "score_rate": 0.0,
+      "attempts": {
+        "total": 4,
+        "by_status": {
+          "forfeit": 1,
+          "completed": 3
+        },
+        "superseded": 0
+      },
+      "llm_turns": {
+        "requested": 69,
+        "responses": 69,
+        "applied": 68,
+        "timeouts": 0,
+        "failed": 0,
+        "unanswered": 0
+      },
+      "legal_move_rate": 0.9855072463768116,
+      "llm_latency_seconds": {
+        "samples": 69,
+        "total": 27.64100000000144,
+        "mean": 0.4005942028985716,
+        "median": 0.3279999999995198,
+        "p95": 0.4220000000004802,
+        "min": 0.25,
+        "max": 5.04700000000048
+      },
+      "recorded_token_usage": {
+        "prompt_tokens": 48488,
+        "output_tokens": 345,
+        "responses_with_usage": 69
+      },
+      "games": [
+        {
+          "index": 1,
+          "pair": 1,
+          "llm_color": "white",
+          "seed": 1000,
+          "run_id": "20260918T040426Z-502fffd3-000001",
+          "attempt_count": 1,
+          "status": "forfeit",
+          "reason": "illegal_move",
+          "result": "0-1",
+          "plies": 2,
+          "llm_outcome": "losses",
+          "llm_turns": {
+            "requested": 2,
+            "responses": 2,
+            "applied": 1,
+            "timeouts": 0,
+            "failed": 0,
+            "unanswered": 0
+          },
+          "llm_latency_seconds": {
+            "samples": 2,
+            "total": 0.5319999999992433,
+            "mean": 0.26599999999962165,
+            "median": 0.26599999999962165,
+            "p95": 0.2819999999992433,
+            "min": 0.25,
+            "max": 0.2819999999992433
+          }
+        },
+        {
+          "index": 2,
+          "pair": 1,
+          "llm_color": "black",
+          "seed": 1000,
+          "run_id": "20260918T040426Z-502fffd3-000002",
+          "attempt_count": 1,
+          "status": "completed",
+          "reason": "checkmate",
+          "result": "1-0",
+          "plies": 61,
+          "llm_outcome": "losses",
+          "llm_turns": {
+            "requested": 30,
+            "responses": 30,
+            "applied": 30,
+            "timeouts": 0,
+            "failed": 0,
+            "unanswered": 0
+          },
+          "llm_latency_seconds": {
+            "samples": 30,
+            "total": 14.97099999999773,
+            "mean": 0.49903333333325767,
+            "median": 0.34350000000085856,
+            "p95": 0.43800000000010186,
+            "min": 0.25,
+            "max": 5.04700000000048
+          }
+        },
+        {
+          "index": 3,
+          "pair": 2,
+          "llm_color": "white",
+          "seed": 1001,
+          "run_id": "20260918T040426Z-502fffd3-000003",
+          "attempt_count": 1,
+          "status": "completed",
+          "reason": "checkmate",
+          "result": "0-1",
+          "plies": 46,
+          "llm_outcome": "losses",
+          "llm_turns": {
+            "requested": 23,
+            "responses": 23,
+            "applied": 23,
+            "timeouts": 0,
+            "failed": 0,
+            "unanswered": 0
+          },
+          "llm_latency_seconds": {
+            "samples": 23,
+            "total": 7.702000000002954,
+            "mean": 0.33486956521751976,
+            "median": 0.3430000000007567,
+            "p95": 0.375,
+            "min": 0.28100000000085856,
+            "max": 0.3899999999994179
+          }
+        },
+        {
+          "index": 4,
+          "pair": 2,
+          "llm_color": "black",
+          "seed": 1001,
+          "run_id": "20260918T040426Z-502fffd3-000004",
+          "attempt_count": 1,
+          "status": "completed",
+          "reason": "checkmate",
+          "result": "1-0",
+          "plies": 29,
+          "llm_outcome": "losses",
+          "llm_turns": {
+            "requested": 14,
+            "responses": 14,
+            "applied": 14,
+            "timeouts": 0,
+            "failed": 0,
+            "unanswered": 0
+          },
+          "llm_latency_seconds": {
+            "samples": 14,
+            "total": 4.436000000001513,
+            "mean": 0.316857142857251,
+            "median": 0.3125,
+            "p95": 0.35900000000037835,
+            "min": 0.2960000000002765,
+            "max": 0.35900000000037835
+          }
+        }
+      ],
+      "definitions": {
+        "score_rate": "(wins + 0.5 * draws) / scored games; includes forfeits, excludes all unscored games",
+        "legal_move_rate": "applied LLM moves / requested LLM turns in the latest attempt of each scheduled game",
+        "latency": "recorded LLM response, timeout and failure durations in latest attempts; warm-up excluded; p95 is nearest-rank",
+        "attempts": "older attempts are retained and counted separately; never added to game scores or turn metrics",
+        "tokens": "sum of reported Ollama prompt_eval_count/eval_count, including thinking when reported; missing usage is not estimated"
+      },
+      "audit": {
+        "artifact_replay": "passed",
+        "legal_lists": "passed",
+        "resume_noop": "passed",
+        "rejected_moves": [
+          {
+            "game": 1,
+            "answer": "e2e4",
+            "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
+          }
+        ]
+      },
+      "mean_plies": 34.5
+    },
+    "unassisted": {
+      "schema_version": 1,
+      "batch_id": "20260918T040517Z-daa26f27",
+      "generated_at": "2026-09-18T04:06:18.615043+00:00",
+      "config": {
+        "mode": "unassisted",
+        "prompt_version": "unassisted-v2",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://localhost:11434",
+          "think": false,
+          "seconds": 60,
+          "tokens": 64,
+          "context": 4096,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "max_plies": 300,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      },
+      "runtime_identities": [
+        {
+          "engine_sha256": "45bc8e4969147db9c2eb533810637994619bff0eacc81ccfd9854394901bcbd0",
+          "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+          "ollama_version": "0.34.1",
+          "packages": {
+            "chess": "1.11.2",
+            "httpx": "0.28.1",
+            "llm-chess-harness": "0.1.0"
+          },
+          "python": "3.12.14"
+        }
+      ],
+      "warnings": [],
+      "scheduled_games": 4,
+      "finalized_games": 4,
+      "scored_games": 4,
+      "unscored_games": 0,
+      "status_counts": {
+        "forfeit": 4
+      },
+      "reason_counts": {
+        "illegal_move": 4
+      },
+      "results": {
+        "wins": 0,
+        "draws": 0,
+        "losses": 4
+      },
+      "results_by_color": {
+        "white": {
+          "wins": 0,
+          "draws": 0,
+          "losses": 2,
+          "scored": 2
+        },
+        "black": {
+          "wins": 0,
+          "draws": 0,
+          "losses": 2,
+          "scored": 2
+        }
+      },
+      "score_rate": 0.0,
+      "attempts": {
+        "total": 4,
+        "by_status": {
+          "forfeit": 4
+        },
+        "superseded": 0
+      },
+      "llm_turns": {
+        "requested": 8,
+        "responses": 8,
+        "applied": 4,
+        "timeouts": 0,
+        "failed": 0,
+        "unanswered": 0
+      },
+      "legal_move_rate": 0.5,
+      "llm_latency_seconds": {
+        "samples": 8,
+        "total": 1.4840000000003783,
+        "mean": 0.1855000000000473,
+        "median": 0.1720000000004802,
+        "p95": 0.2650000000012369,
+        "min": 0.15599999999903957,
+        "max": 0.2650000000012369
+      },
+      "recorded_token_usage": {
+        "prompt_tokens": 3406,
+        "output_tokens": 40,
+        "responses_with_usage": 8
+      },
+      "games": [
+        {
+          "index": 1,
+          "pair": 1,
+          "llm_color": "white",
+          "seed": 1000,
+          "run_id": "20260918T040517Z-daa26f27-000001",
+          "attempt_count": 1,
+          "status": "forfeit",
+          "reason": "illegal_move",
+          "result": "0-1",
+          "plies": 2,
+          "llm_outcome": "losses",
+          "llm_turns": {
+            "requested": 2,
+            "responses": 2,
+            "applied": 1,
+            "timeouts": 0,
+            "failed": 0,
+            "unanswered": 0
+          },
+          "llm_latency_seconds": {
+            "samples": 2,
+            "total": 0.4370000000017171,
+            "mean": 0.21850000000085856,
+            "median": 0.21850000000085856,
+            "p95": 0.2650000000012369,
+            "min": 0.1720000000004802,
+            "max": 0.2650000000012369
+          }
+        },
+        {
+          "index": 2,
+          "pair": 1,
+          "llm_color": "black",
+          "seed": 1000,
+          "run_id": "20260918T040517Z-daa26f27-000002",
+          "attempt_count": 1,
+          "status": "forfeit",
+          "reason": "illegal_move",
+          "result": "1-0",
+          "plies": 3,
+          "llm_outcome": "losses",
+          "llm_turns": {
+            "requested": 2,
+            "responses": 2,
+            "applied": 1,
+            "timeouts": 0,
+            "failed": 0,
+            "unanswered": 0
+          },
+          "llm_latency_seconds": {
+            "samples": 2,
+            "total": 0.3429999999989377,
+            "mean": 0.17149999999946886,
+            "median": 0.17149999999946886,
+            "p95": 0.18699999999989814,
+            "min": 0.15599999999903957,
+            "max": 0.18699999999989814
+          }
+        },
+        {
+          "index": 3,
+          "pair": 2,
+          "llm_color": "white",
+          "seed": 1001,
+          "run_id": "20260918T040517Z-daa26f27-000003",
+          "attempt_count": 1,
+          "status": "forfeit",
+          "reason": "illegal_move",
+          "result": "0-1",
+          "plies": 2,
+          "llm_outcome": "losses",
+          "llm_turns": {
+            "requested": 2,
+            "responses": 2,
+            "applied": 1,
+            "timeouts": 0,
+            "failed": 0,
+            "unanswered": 0
+          },
+          "llm_latency_seconds": {
+            "samples": 2,
+            "total": 0.3440000000009604,
+            "mean": 0.1720000000004802,
+            "median": 0.1720000000004802,
+            "p95": 0.1720000000004802,
+            "min": 0.1720000000004802,
+            "max": 0.1720000000004802
+          }
+        },
+        {
+          "index": 4,
+          "pair": 2,
+          "llm_color": "black",
+          "seed": 1001,
+          "run_id": "20260918T040517Z-daa26f27-000004",
+          "attempt_count": 1,
+          "status": "forfeit",
+          "reason": "illegal_move",
+          "result": "1-0",
+          "plies": 3,
+          "llm_outcome": "losses",
+          "llm_turns": {
+            "requested": 2,
+            "responses": 2,
+            "applied": 1,
+            "timeouts": 0,
+            "failed": 0,
+            "unanswered": 0
+          },
+          "llm_latency_seconds": {
+            "samples": 2,
+            "total": 0.3599999999987631,
+            "mean": 0.17999999999938154,
+            "median": 0.17999999999938154,
+            "p95": 0.18800000000010186,
+            "min": 0.17199999999866122,
+            "max": 0.18800000000010186
+          }
+        }
+      ],
+      "definitions": {
+        "score_rate": "(wins + 0.5 * draws) / scored games; includes forfeits, excludes all unscored games",
+        "legal_move_rate": "applied LLM moves / requested LLM turns in the latest attempt of each scheduled game",
+        "latency": "recorded LLM response, timeout and failure durations in latest attempts; warm-up excluded; p95 is nearest-rank",
+        "attempts": "older attempts are retained and counted separately; never added to game scores or turn metrics",
+        "tokens": "sum of reported Ollama prompt_eval_count/eval_count, including thinking when reported; missing usage is not estimated"
+      },
+      "audit": {
+        "artifact_replay": "passed",
+        "legal_lists": "not supplied",
+        "resume_noop": "passed",
+        "rejected_moves": [
+          {
+            "game": 1,
+            "answer": "e4c5",
+            "fen": "rnbqkbnr/pp1ppppp/8/2p5/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
+          },
+          {
+            "game": 2,
+            "answer": "e7e5",
+            "fen": "rnbqkbnr/pppp1ppp/4p3/8/8/2P2N2/PP1PPPPP/RNBQKB1R b KQkq - 0 2"
+          },
+          {
+            "game": 3,
+            "answer": "e2e4",
+            "fen": "rnbqkbnr/pppp1ppp/8/4p3/4P3/8/PPPP1PPP/RNBQKBNR w KQkq - 0 2"
+          },
+          {
+            "game": 4,
+            "answer": "e7e5",
+            "fen": "rnbqkbnr/pppp1ppp/4p3/8/2P5/2N5/PP1PPPPP/R1BQKBNR b KQkq - 1 2"
+          }
+        ]
+      },
+      "mean_plies": 2.5
+    }
+  },
+  "live_edge_cases": [
+    {
+      "case": "castling",
+      "run_id": "20260918T040718Z-6ca74a32-qa-castling",
+      "summary": {
+        "status": "truncated",
+        "result": "*",
+        "reason": "max_plies",
+        "plies": 1,
+        "final_fen": "r3k2r/8/8/8/8/8/8/R4RK1 b kq - 1 1",
+        "elapsed_seconds": 0.31199999999989814
+      },
+      "config": {
+        "mode": "legal-moves",
+        "prompt_version": "legal-moves-v1",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://localhost:11434",
+          "think": false,
+          "seconds": 60,
+          "tokens": 64,
+          "context": 4096,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1",
+        "max_plies": 1,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      }
+    },
+    {
+      "case": "promotion",
+      "run_id": "20260918T040719Z-f1907e9f-qa-promotion",
+      "summary": {
+        "status": "truncated",
+        "result": "*",
+        "reason": "max_plies",
+        "plies": 1,
+        "final_fen": "Q6k/8/8/8/8/8/8/7K b - - 0 1",
+        "elapsed_seconds": 0.2819999999992433
+      },
+      "config": {
+        "mode": "legal-moves",
+        "prompt_version": "legal-moves-v1",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://localhost:11434",
+          "think": false,
+          "seconds": 60,
+          "tokens": 64,
+          "context": 4096,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "7k/P7/8/8/8/8/8/7K w - - 0 1",
+        "max_plies": 1,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      }
+    },
+    {
+      "case": "en-passant",
+      "run_id": "20260918T040719Z-e228e69f-qa-en-passant",
+      "summary": {
+        "status": "truncated",
+        "result": "*",
+        "reason": "max_plies",
+        "plies": 1,
+        "final_fen": "7k/8/3P4/8/8/8/8/7K b - - 0 2",
+        "elapsed_seconds": 0.18699999999989814
+      },
+      "config": {
+        "mode": "legal-moves",
+        "prompt_version": "legal-moves-v1",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://localhost:11434",
+          "think": false,
+          "seconds": 60,
+          "tokens": 64,
+          "context": 4096,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "7k/8/8/3pP3/8/8/8/7K w - d6 0 2",
+        "max_plies": 1,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      }
+    },
+    {
+      "case": "in-check",
+      "run_id": "20260918T040720Z-8a629bc1-qa-in-check",
+      "summary": {
+        "status": "truncated",
+        "result": "*",
+        "reason": "max_plies",
+        "plies": 1,
+        "final_fen": "4r2k/8/8/8/8/8/8/3K4 b - - 1 1",
+        "elapsed_seconds": 0.18699999999989814
+      },
+      "config": {
+        "mode": "legal-moves",
+        "prompt_version": "legal-moves-v1",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://localhost:11434",
+          "think": false,
+          "seconds": 60,
+          "tokens": 64,
+          "context": 4096,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "4r2k/8/8/8/8/8/8/4K3 w - - 0 1",
+        "max_plies": 1,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      }
+    },
+    {
+      "case": "output-limit",
+      "run_id": "20260918T040720Z-0c1ec64b-qa-output-limit",
+      "summary": {
+        "status": "forfeit",
+        "result": "0-1",
+        "reason": "output_limit",
+        "plies": 0,
+        "final_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "elapsed_seconds": 0.1569999999992433
+      },
+      "config": {
+        "mode": "legal-moves",
+        "prompt_version": "legal-moves-v1",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://localhost:11434",
+          "think": false,
+          "seconds": 60,
+          "tokens": 1,
+          "context": 4096,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "max_plies": 2,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      }
+    },
+    {
+      "case": "context-mismatch",
+      "run_id": "20260918T040721Z-3fb31f3b-qa-context-mismatch",
+      "summary": {
+        "status": "infrastructure_failure",
+        "result": "*",
+        "reason": "context_size_mismatch",
+        "error": "Requested 512 context tokens, but Ollama loaded 2048. Choose a supported --context value and start a new run."
+      },
+      "config": {
+        "mode": "legal-moves",
+        "prompt_version": "legal-moves-v1",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://localhost:11434",
+          "think": false,
+          "seconds": 60,
+          "tokens": 64,
+          "context": 512,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "max_plies": 2,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      }
+    },
+    {
+      "case": "unavailable-service",
+      "run_id": "20260918T040726Z-bc33d664-qa-unavailable-service",
+      "summary": {
+        "status": "infrastructure_failure",
+        "result": "*",
+        "reason": "initialization_failure",
+        "error": "[WinError 10061] No connection could be made because the target machine actively refused it"
+      },
+      "config": {
+        "mode": "legal-moves",
+        "prompt_version": "legal-moves-v1",
+        "limit_policy": {
+          "version": "strict-limits-v1",
+          "truncate": false,
+          "shift": false,
+          "output_limit": "forfeit",
+          "context_limit": "truncated",
+          "ambiguous_generation_limit": "truncated"
+        },
+        "llm": {
+          "model": "qwen3.5:9b",
+          "url": "http://127.0.0.1:1",
+          "think": false,
+          "seconds": 60,
+          "tokens": 64,
+          "context": 4096,
+          "temperature": 0,
+          "seed": 1000
+        },
+        "engine": {
+          "path": "<local Stockfish 19 executable>",
+          "seconds": 30,
+          "hash_mb": 64,
+          "nodes": 10000,
+          "skill": 0,
+          "threads": 1
+        },
+        "llm_color": "white",
+        "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+        "max_plies": 2,
+        "draw_policy": "automatically claim available draws",
+        "retries": 0
+      }
+    },
+    {
+      "case": "oversized-prompt",
+      "reason": "context_limit",
+      "raw": {
+        "http_status": 400,
+        "body": {
+          "error": "{\"error\":{\"code\":400,\"message\":\"request (10556 tokens) exceeds the available context size (4096 tokens), try increasing it\",\"type\":\"exceed_context_size_error\",\"n_prompt_tokens\":10556,\"n_ctx\":4096}}"
+        }
+      }
+    }
+  ]
+}

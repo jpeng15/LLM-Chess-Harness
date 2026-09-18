@@ -122,13 +122,13 @@ class ModeTests(unittest.TestCase):
             for job in result["games"]:
                 directory = root / job["current_run_id"]
                 self.assertEqual(read_json(directory / "manifest.json")["config"]["mode"], "legal-moves")
-                self.assertEqual(snapshot(directory)["config"]["prompt_version"], "legal-moves-v1")
+                self.assertEqual(snapshot(directory)["config"]["prompt_version"], "legal-moves-v2")
                 records = [json.loads(line) for line in (directory / "events.jsonl").read_text().splitlines()]
                 requests = [e["request"] for e in records if e["type"] == "move_requested" and e["request"] is not None]
                 self.assertEqual(len(requests), 1)
                 self.assertIn("Legal moves", requests[0]["messages"][1]["content"])
             report = build_report(root / "batches" / result["batch_id"])
-            self.assertIn("Mode: legal-moves | Prompt: legal-moves-v1", markdown(report))
+            self.assertIn("Mode: legal-moves | Prompt: legal-moves-v2", markdown(report))
 
 
 if __name__ == "__main__":

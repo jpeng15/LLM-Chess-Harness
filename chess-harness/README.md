@@ -326,7 +326,13 @@ exactly one listed move; there are no evaluations, tools, constrained decoding,
 repair attempts or fallback moves. Malformed answers and moves outside the list
 still forfeit under the same referee rules.
 
-Assisted runs record `mode: legal-moves` and `prompt_version: legal-moves-v1`.
+The assisted system prompt asks the model to consider threats and the opponent's
+reply, protect its pieces, and develop inactive pieces. It discourages pointless
+back-and-forth moves while allowing repetition for tactical reasons, defense or
+a draw. This is advice, not an enforced rule: the model can still repeat or blunder.
+See the [prompt-tuning results and limitations](docs/stage2-prompt-tuning.md).
+
+Assisted runs record `mode: legal-moves` and `prompt_version: legal-moves-v2`.
 The mode appears in the viewer, Markdown/JSON reports and the PGN event label.
 Exact prompts, including the complete list, are stored in `move_requested` events.
 The list consumes the existing context budget; backend prompt-token totals are
@@ -334,8 +340,10 @@ reported as before. There is no separate estimate of list-only token cost or
 automatic increase to the budget. Generation and time limits are unchanged.
 
 Batch resume uses the saved mode and its corresponding prompt version; it cannot
-switch an existing batch between assisted and unassisted. Use a new batch for
-each mode. Explicit `--mode unassisted` and the default retain the Stage 1 prompt.
+switch an existing batch between assisted and unassisted. Start a new batch after
+changing prompt versions; this version will not resume a `legal-moves-v1` batch.
+Old runs remain viewable and reportable. Use a new batch for each mode.
+Explicit `--mode unassisted` and the default retain the Stage 1 prompt.
 For a controlled comparison, keep colors, seeds, starting position, model, engine
 settings and budgets matched, and use the same ply cap in both modes. The
 eight-ply command above is a smoke check, not the full baseline comparison.

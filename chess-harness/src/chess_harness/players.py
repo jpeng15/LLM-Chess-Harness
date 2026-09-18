@@ -10,7 +10,7 @@ import httpx
 from .limits import PlayerFailure, context_error, cutoff_reason
 
 PROMPT_VERSION = "unassisted-v2"
-PROMPT_VERSIONS = {"unassisted": PROMPT_VERSION, "legal-moves": "legal-moves-v1"}
+PROMPT_VERSIONS = {"unassisted": PROMPT_VERSION, "legal-moves": "legal-moves-v2"}
 
 
 def prompt_version(mode):
@@ -33,6 +33,17 @@ SYSTEM_PROMPT = (
     "Do not output SAN such as Nf3, e4, O-O, or a8=Q. "
     "Do not include piece names, capture/check symbols, move numbers, quotes, "
     "markdown, explanations, or alternative moves. Return only the UCI move."
+)
+
+
+ASSISTED_SYSTEM_PROMPT = SYSTEM_PROMPT + (
+    "\nThe position includes every legal move in sorted UCI order, without rankings. "
+    "Choose exactly one of the listed moves."
+    "\nPlay for a win while keeping your king and pieces safe. Before choosing, consider "
+    "the opponent's threats and likely reply. When there is no urgent tactic, develop "
+    "inactive knights and bishops, improve king safety, and coordinate your pieces. "
+    "Use the history to avoid pointless back-and-forth moves, but repeat if it is the "
+    "best defense or secures a draw. The first legal move is not necessarily the best move."
 )
 
 
@@ -79,7 +90,7 @@ class OllamaPlayer:
     def request(self, board):
         system = SYSTEM_PROMPT
         if self.mode == "legal-moves":
-            system += "\nThe position includes every legal move in sorted UCI order, without rankings. Choose exactly one of the listed moves."
+            system = ASSISTED_SYSTEM_PROMPT
         return {
             "model": self.name, "stream": False, "think": self.config["think"],
             "truncate": False, "shift": False,

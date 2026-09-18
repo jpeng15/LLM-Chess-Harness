@@ -10,7 +10,7 @@ from .cli import add_game_arguments, game_config, positive
 from .game import Recorder
 from .runner import new_run_id, run_match
 from .limits import LIMIT_POLICY_VERSION
-from .players import PROMPT_VERSION
+from .players import prompt_version
 from .storage import batch_lock, read_json, runtime_identity, saved_summary
 
 FINISHED = {"completed", "forfeit", "truncated"}
@@ -122,7 +122,7 @@ def resume_batch(directory):
     directory = directory.resolve()
     with batch_lock(directory):
         plan, progress = load_batch(directory)
-        if plan["config"]["prompt_version"] != PROMPT_VERSION or plan["config"]["limit_policy"]["version"] != LIMIT_POLICY_VERSION:
+        if plan["config"]["prompt_version"] != prompt_version(plan["config"]["mode"]) or plan["config"]["limit_policy"]["version"] != LIMIT_POLICY_VERSION:
             raise ValueError("Prompt or limit policy changed; start a new batch")
         output = directory.parent.parent
         reconcile(plan, progress, output)

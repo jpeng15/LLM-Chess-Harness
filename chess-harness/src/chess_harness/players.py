@@ -1,4 +1,4 @@
-"""Player adapters; the LLM receives no legal-move list or corrective feedback."""
+"""Player adapters with explicit unassisted and legal-move prompt modes."""
 import asyncio
 from dataclasses import dataclass
 import time
@@ -10,6 +10,15 @@ import httpx
 from .limits import PlayerFailure, context_error, cutoff_reason
 
 PROMPT_VERSION = "unassisted-v2"
+PROMPT_VERSIONS = {"unassisted": PROMPT_VERSION, "legal-moves": "legal-moves-v1"}
+
+
+def prompt_version(mode):
+    if mode not in PROMPT_VERSIONS:
+        raise ValueError(f"Unsupported assistance mode: {mode!r}")
+    return PROMPT_VERSIONS[mode]
+
+
 SYSTEM_PROMPT = (
     "You play standard chess. Choose a move for the side to move in the supplied position.\n"
     "Output exactly one move in UCI coordinate notation: the two-character origin square "
@@ -27,7 +36,8 @@ SYSTEM_PROMPT = (
 )
 
 
-def observation(board: chess.Board) -> str:
+def observation(board: chess.Board, mode="unassisted") -> str:
+    prompt_version(mode)
     replay = board.root()
     history = []
     for move in board.move_stack:
@@ -36,13 +46,19 @@ def observation(board: chess.Board) -> str:
         replay.push(move)
     rows = str(board).splitlines()
     diagram = "\n".join(f"{8-i} {row}" for i, row in enumerate(rows))
-    return (
+    text = (
         f"Side to move: {'White' if board.turn else 'Black'}\nFEN: {board.fen()}\n"
         f"Board (uppercase White, lowercase Black, dot empty):\n{diagram}\n  a b c d e f g h\n"
         f"Move history: {' '.join(history) or 'none'}\n"
         "Choose your move. Reply with only the origin and destination squares "
         "in lowercase UCI notation (4 characters, or 5 for promotion). Do not use SAN."
     )
+    if mode == "legal-moves":
+        moves = sorted(move.uci() for move in board.legal_moves)
+        text += (f"\nLegal moves in UCI notation (sorted, not ranked; {len(moves)} moves):\n"
+                 + " ".join(moves)
+                 + "\nChoose exactly one move from this list. Return only that UCI move.")
+    return text
 
 
 @dataclass
@@ -57,16 +73,21 @@ class OllamaPlayer:
     def __init__(self, config):
         self.config = config
         self.name = config["model"]
+        self.mode = config.get("mode", "unassisted")
+        prompt_version(self.mode)
 
     def request(self, board):
+        system = SYSTEM_PROMPT
+        if self.mode == "legal-moves":
+            system += "\nThe position includes every legal move in sorted UCI order, without rankings. Choose exactly one of the listed moves."
         return {
             "model": self.name, "stream": False, "think": self.config["think"],
             "truncate": False, "shift": False,
             "keep_alive": "30m",
             "options": {"num_ctx": self.config["context"], "num_predict": self.config["tokens"],
                         "temperature": self.config["temperature"], "seed": self.config["seed"]},
-            "messages": [{"role": "system", "content": SYSTEM_PROMPT},
-                         {"role": "user", "content": observation(board)}],
+            "messages": [{"role": "system", "content": system},
+                         {"role": "user", "content": observation(board, self.mode)}],
         }
 
     async def _post(self, path, body, seconds):

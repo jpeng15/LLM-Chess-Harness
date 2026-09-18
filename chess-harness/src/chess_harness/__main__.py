@@ -1,4 +1,4 @@
-"""Run one unassisted Ollama vs Stockfish game."""
+"""Run one Ollama vs Stockfish game with an explicit assistance mode."""
 import argparse
 
 from .cli import add_game_arguments, game_config

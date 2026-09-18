@@ -3,7 +3,8 @@
 Stage 1 runs unassisted LLMs against UCI chess engines, with saved games,
 live viewing, paired batch benchmarks, interruption recovery and aggregate reports.
 The local Stage 1 workflow is complete; see the [acceptance checks and recorded
-baseline](docs/stage1-validation.md). Stage 2 will add legal-move assistance.
+baseline](docs/stage1-validation.md). Stage 2's legal-move prompt assistance is
+available through `--mode legal-moves`; unassisted remains the default.
 The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
@@ -240,7 +241,7 @@ For a short smoke test or a different configuration:
 ./.venv/bin/python -m chess_harness --help
 ```
 
-The referee supplies FEN, a text board, and SAN history, but no legal moves or
+In the default unassisted mode, the referee supplies FEN, a text board, and SAN history, but no legal moves or
 tools. Each turn is a fresh request. Only surrounding whitespace is ignored:
 prose, invalid notation, and illegal moves cause a forfeit. LLM deadlines also
 cause forfeits; engine or service failures are recorded as infrastructure failures.
@@ -298,6 +299,46 @@ The controls were tested with local GGUF inference on Ollama 0.34.0 and 0.34.1. 
 and future versions still need validation; matching a version floor alone does not
 establish identical behavior. If a backend reports an unfamiliar context error,
 it remains an infrastructure failure with the original error saved.
+
+### Legal-move assisted mode
+
+Add `--mode legal-moves` to either the single-game or batch command:
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness --mode legal-moves
+.\.venv\Scripts\python.exe -m chess_harness.batch --mode legal-moves --pairs 1 --max-plies 8 --seed 1000
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --mode legal-moves
+./.venv/bin/python -m chess_harness.batch --engine "$STOCKFISH" --mode legal-moves --pairs 1 --max-plies 8 --seed 1000
+```
+
+The model receives the same board, FEN and SAN history, followed by every legal
+move for the side to move in a sorted UCI list. The list includes castling,
+en passant and all promotion choices when legal, and is regenerated each turn.
+Sorting is lexical, not an engine ranking. The model is instructed to select
+exactly one listed move; there are no evaluations, tools, constrained decoding,
+repair attempts or fallback moves. Malformed answers and moves outside the list
+still forfeit under the same referee rules.
+
+Assisted runs record `mode: legal-moves` and `prompt_version: legal-moves-v1`.
+The mode appears in the viewer, Markdown/JSON reports and the PGN event label.
+Exact prompts, including the complete list, are stored in `move_requested` events.
+The list consumes the existing context budget; backend prompt-token totals are
+reported as before. There is no separate estimate of list-only token cost or
+automatic increase to the budget. Generation and time limits are unchanged.
+
+Batch resume uses the saved mode and its corresponding prompt version; it cannot
+switch an existing batch between assisted and unassisted. Use a new batch for
+each mode. Explicit `--mode unassisted` and the default retain the Stage 1 prompt.
+For a controlled comparison, keep colors, seeds, starting position, model, engine
+settings and budgets matched, and use the same ply cap in both modes. The
+eight-ply command above is a smoke check, not the full baseline comparison.
 
 Each run has its own directory under `runs/`, containing `manifest.json` (configuration,
 model inventory/digests and versions), `events.jsonl` (requests, raw responses and timing),

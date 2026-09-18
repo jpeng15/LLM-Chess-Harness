@@ -64,3 +64,15 @@ test('new events preserve replay position until Live is selected',async()=>{
   assert.match(app.element('board').alt,/after 2 half-moves/);
   assert.equal(app.element('live').attributes['aria-pressed'],'true');
 });
+
+test('mode labels distinguish assisted and unassisted games',async()=>{
+  const app=controller();await app.ready();
+  app.state.config.mode='legal-moves';app.state.config.prompt_version='legal-moves-v1';
+  await app.poll();
+  assert.equal(app.element('mode').textContent,'Legal-move assisted');
+  assert.equal(app.element('prompt').textContent,'legal-moves-v1');
+  app.state.config.mode='unassisted';app.state.config.prompt_version='unassisted-v2';
+  await app.poll();
+  assert.equal(app.element('mode').textContent,'Unassisted');
+  assert.equal(app.element('prompt').textContent,'unassisted-v2');
+});

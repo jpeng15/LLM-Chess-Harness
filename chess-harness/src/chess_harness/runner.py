@@ -21,7 +21,7 @@ def new_run_id():
 
 def run_match(config, directory, *, batch=None, expected_identity=None):
     """Create fresh players and logs; return the referee's unmodified summary."""
-    recorder = Recorder(directory)
+    recorder = Recorder(directory, mode=config["mode"])
     manifest = {"run_id": directory.name, "config": config, "python": platform.python_version()}
     if batch is not None:
         manifest["batch"] = batch
@@ -42,7 +42,7 @@ def run_match(config, directory, *, batch=None, expected_identity=None):
         engine = EnginePlayer(config["engine"])
         manifest["engine_id"] = engine.engine.id
         recorder.write("manifest.json", manifest)
-        llm = OllamaPlayer(config["llm"])
+        llm = OllamaPlayer({**config["llm"], "mode": config["mode"]})
         print("Warming model (excluded from game timing)...", flush=True)
         recorder.event("warmup_completed", response=llm.warmup())
         manifest["loaded_model"] = llm.verify_loaded_context()

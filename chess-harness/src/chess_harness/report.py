@@ -137,6 +137,7 @@ def markdown(report):
         return "n/a" if value is None else f"{value:.3f}"
     score = report["score_rate"]
     lines = [f"# Batch report: {report['batch_id']}", "",
+             f"Mode: {report['config']['mode']} | Prompt: {report['config']['prompt_version']}", "",
              f"Scheduled: {report['scheduled_games']} | Finalized: {report['finalized_games']} | Scored: {report['scored_games']} | Unscored: {report['unscored_games']}", "",
              f"LLM wins/draws/losses: {report['results']['wins']}/{report['results']['draws']}/{report['results']['losses']}", "",
              f"Score rate: {'n/a' if score is None else f'{score:.1%}'} (forfeits included; unscored games excluded).", "",

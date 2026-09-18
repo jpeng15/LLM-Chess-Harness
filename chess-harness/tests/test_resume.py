@@ -86,6 +86,10 @@ class ResumeTests(unittest.TestCase):
         self.assertEqual(result["status"], "completed")
         self.assertEqual(len(result["games"][1]["attempts"]), 2)
 
+    def test_assisted_resume_preserves_mode_and_accepts_its_prompt_version(self):
+        self.config.update(mode="legal-moves", prompt_version="legal-moves-v1")
+        self.test_restart_interrupted_attempt_preserves_logs_and_settings()
+
     def test_terminal_event_recovers_lagging_checkpoint(self):
         self.start()
         game = self.root / "test-batch-000002"

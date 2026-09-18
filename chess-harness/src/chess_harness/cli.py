@@ -5,7 +5,7 @@ from pathlib import Path
 import chess
 
 from .limits import LIMIT_POLICY_VERSION
-from .players import PROMPT_VERSION
+from .players import PROMPT_VERSIONS, prompt_version
 
 ROOT = Path(__file__).resolve().parents[2]
 
@@ -18,6 +18,8 @@ def positive(value):
 
 
 def add_game_arguments(parser, *, include_color=True):
+    parser.add_argument("--mode", choices=PROMPT_VERSIONS, default="unassisted",
+                        help="prompt assistance (default: unassisted)")
     parser.add_argument("--model", default="qwen3.5:9b")
     parser.add_argument("--url", default="http://localhost:11434")
     parser.add_argument("--engine", type=Path, default=ROOT / "engines/stockfish-19/stockfish/stockfish-windows-x86-64-universal.exe")
@@ -48,7 +50,7 @@ def game_config(parser, args):
     if not args.engine.is_file():
         parser.error(f"Engine does not exist: {args.engine}")
     return {
-        "mode": "unassisted", "prompt_version": PROMPT_VERSION,
+        "mode": args.mode, "prompt_version": prompt_version(args.mode),
         "limit_policy": {"version": LIMIT_POLICY_VERSION, "truncate": False, "shift": False,
                          "output_limit": "forfeit", "context_limit": "truncated",
                          "ambiguous_generation_limit": "truncated"},

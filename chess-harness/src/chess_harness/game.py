@@ -11,10 +11,11 @@ from .limits import PlayerFailure
 
 
 class Recorder:
-    def __init__(self, directory, *, exist_ok=False):
+    def __init__(self, directory, *, exist_ok=False, mode="unassisted"):
         self.directory = directory
         directory.mkdir(parents=True, exist_ok=exist_ok)
         self.sequence = 0
+        self.mode = mode
 
     def write(self, name, value):
         path = self.directory / name
@@ -31,7 +32,8 @@ class Recorder:
 
     def pgn(self, board, players, result="*", reason="in_progress"):
         game = chess.pgn.Game.from_board(board)
-        game.headers.update({"Event": "Unassisted LLM vs engine", "White": players[chess.WHITE].name,
+        event = "Legal-move-assisted LLM vs engine" if self.mode == "legal-moves" else "Unassisted LLM vs engine"
+        game.headers.update({"Event": event, "White": players[chess.WHITE].name,
                              "Black": players[chess.BLACK].name, "Result": result,
                              "Termination": reason, "Date": datetime.now().strftime("%Y.%m.%d")})
         path = self.directory / "game.pgn"

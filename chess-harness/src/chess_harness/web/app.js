@@ -27,6 +27,7 @@ function renderPosition(){
 function renderData(){
   if(!data)return;
   const summary=data.summary;
+  text('mode',data.config.mode==='legal-moves'?'Legal-move assisted':data.config.mode==='unassisted'?'Unassisted':data.config.mode||'Mode unavailable');
   text('status',summary?summary.status.replaceAll('_',' '):(data.pending?'Thinking':data.sequence===0?'Preparing game':'Game in progress'));
   text('result',summary?.result||'');
   text('detail',summary?(summary.error||summary.reason.replaceAll('_',' ')):(data.pending?`${data.pending.player} is choosing a move.`:'Waiting for the next event.'));
@@ -75,7 +76,7 @@ async function poll(){
     if(changed){follow=true;stopReplay();}
     data=next;if(follow)index=data.positions.length-1;else index=Math.min(index,data.positions.length-1);
     text('notice',data.id+' · Board controls affect replay only; the game keeps running.');
-    const key=JSON.stringify([data.id,data.sequence,data.summary,data.engine_name]);
+    const key=JSON.stringify([data.id,data.sequence,data.summary,data.engine_name,data.config.mode,data.config.prompt_version]);
     if(key!==lastKey){renderData();lastKey=key;}
     else if(!boardKey){renderPosition();}
   }catch(error){text('connection','Disconnected · retrying');text('notice',error.message+'; showing last received position.');}

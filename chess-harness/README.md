@@ -76,7 +76,7 @@ run `ollama serve` in a separate terminal and leave it open.
 With the server running, download the model from another terminal (all platforms):
 
 ```text
-ollama pull qwen3.5:9b
+ollama pull qwen3.6:35b-a3b
 ollama list
 ```
 
@@ -85,6 +85,46 @@ another reachable Ollama server. Local inference speed and memory requirements
 depend on your hardware; the RTX 5070 measurements from development do not apply
 to every machine. Ollama's macOS documentation lists GPU support for Apple silicon
 and CPU-only support for Intel Macs.
+
+### Trying Qwen3.6 35B-A3B
+
+The harness defaults to the official Ollama model
+[`qwen3.6:35b-a3b`](https://ollama.com/library/qwen3.6:35b-a3b).
+Its Q4_K_M download is approximately 23 GB. The MoE architecture activates about
+3B parameters per token, but all model weights still need storage and memory.
+On a 12 GB GPU, expect a CPU/GPU split and significant system RAM use; unload
+other models first. `ollama ps` shows the actual placement. Start at 4,096 context
+tokens and measure performance on your machine before increasing the budget.
+
+Download once (on Windows, if `ollama` is not on PATH, use
+`& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"` in its place):
+
+```text
+ollama pull qwen3.6:35b-a3b
+```
+
+Run a short assisted game from this directory:
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness --model qwen3.6:35b-a3b --mode legal-moves --context 4096 --tokens 64 --move-seconds 60 --max-plies 20
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --model qwen3.6:35b-a3b --mode legal-moves --context 4096 --tokens 64 --move-seconds 60 --max-plies 20
+```
+
+Remove `--max-plies 20` for the normal 300-ply cap. Use the same `--model` option
+with `chess_harness.batch` to benchmark it. Start a new batch for a different
+model; saved batches cannot switch models on resume. These commands leave
+thinking disabled and retain the existing budgets for comparison. Thinking-mode
+experiments need a larger, separately recorded token/time budget; 64 output
+tokens are not a suitable reasoning budget. The default model is Qwen3.6 35B-A3B.
+The earlier Qwen3.5 9B benchmark records remain available, but replaying those
+experiments requires downloading `qwen3.5:9b` again and selecting it explicitly.
 
 ## Stockfish
 
@@ -201,7 +241,7 @@ does not contain model responses and is not currently importable.
 
 ## Run a game
 
-Start Ollama with `qwen3.5:9b` installed, then run on **Windows**:
+Start Ollama with `qwen3.6:35b-a3b` installed, then run on **Windows**:
 
 ```powershell
 .\.venv\Scripts\python.exe -m chess_harness

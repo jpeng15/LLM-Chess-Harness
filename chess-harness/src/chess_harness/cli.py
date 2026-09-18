@@ -20,7 +20,7 @@ def positive(value):
 def add_game_arguments(parser, *, include_color=True):
     parser.add_argument("--mode", choices=PROMPT_VERSIONS, default="unassisted",
                         help="prompt assistance (default: unassisted)")
-    parser.add_argument("--model", default="qwen3.5:9b")
+    parser.add_argument("--model", default="qwen3.6:35b-a3b")
     parser.add_argument("--url", default="http://localhost:11434")
     parser.add_argument("--engine", type=Path, default=ROOT / "engines/stockfish-19/stockfish/stockfish-windows-x86-64-universal.exe")
     if include_color:

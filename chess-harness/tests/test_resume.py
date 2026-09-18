@@ -7,6 +7,8 @@ from pathlib import Path
 import subprocess
 import sys
 import tempfile
+import queue
+import threading
 import unittest
 from unittest.mock import patch
 import httpx
@@ -116,6 +118,56 @@ class ResumeTests(unittest.TestCase):
         self.assertIn("locked by another process", blocked.stderr)
         released = subprocess.run([sys.executable, "-c", code, str(self.directory)], capture_output=True, text=True, timeout=10)
         self.assertEqual(released.returncode, 0, released.stderr)
+
+    def test_hard_kill_releases_lock_and_preserves_partial_attempt(self):
+        config_path = self.root / "child-config.json"
+        config_path.write_text(json.dumps(self.config))
+        script = '''
+import json, sys, time
+from pathlib import Path
+from unittest.mock import patch
+from chess_harness.batch import run_batch
+from chess_harness.game import Recorder
+root = Path(sys.argv[1])
+config = json.loads((root / "child-config.json").read_text())
+def play(config, directory, *, batch):
+    recorder = Recorder(directory)
+    recorder.write("manifest.json", {"config": config, "batch": batch})
+    recorder.event("move_requested", fen=config["initial_fen"], ply=1, player="test")
+    print("READY_TO_KILL", flush=True)
+    time.sleep(60)
+with patch("chess_harness.batch.new_run_id", return_value="test-batch"), patch("chess_harness.batch.run_match", play):
+    run_batch(config, root, 1)
+'''
+        child = subprocess.Popen([sys.executable, "-c", script, str(self.root)], stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, text=True)
+        lines = queue.Queue()
+        def read_output():
+            for line in child.stdout:
+                lines.put(line)
+            lines.put("EOF")
+        reader = threading.Thread(target=read_output, daemon=True)
+        reader.start()
+        try:
+            while True:
+                line = lines.get(timeout=10)
+                self.assertNotEqual(line, "EOF", "child exited before creating a partial game")
+                if "READY_TO_KILL" in line:
+                    break
+            child.kill()
+            child.wait(timeout=10)
+        finally:
+            if child.poll() is None:
+                child.kill()
+                child.wait(timeout=10)
+            reader.join(timeout=2)
+            child.stdout.close()
+        before = (self.root / "test-batch-000001/events.jsonl").read_bytes()
+        with patch("chess_harness.batch.run_match", side_effect=self.play):
+            result = self.resume()
+        self.assertEqual(result["status"], "completed")
+        self.assertEqual(result["games"][0]["current_run_id"], "test-batch-000001-attempt-0002")
+        self.assertEqual((self.root / "test-batch-000001/events.jsonl").read_bytes(), before)
 
     def test_resume_rejects_overrides_policy_drift_and_unsafe_paths(self):
         self.start()

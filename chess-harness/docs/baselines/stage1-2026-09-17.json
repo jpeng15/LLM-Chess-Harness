@@ -1,0 +1,284 @@
+{
+  "schema_version": 1,
+  "batch_id": "20260918T015406Z-13a3ed30",
+  "generated_at": "2026-09-18T01:58:05.719632+00:00",
+  "config": {
+    "mode": "unassisted",
+    "prompt_version": "unassisted-v2",
+    "limit_policy": {
+      "version": "strict-limits-v1",
+      "truncate": false,
+      "shift": false,
+      "output_limit": "forfeit",
+      "context_limit": "truncated",
+      "ambiguous_generation_limit": "truncated"
+    },
+    "llm": {
+      "model": "qwen3.5:9b",
+      "url": "http://localhost:11434",
+      "think": false,
+      "seconds": 60,
+      "tokens": 64,
+      "context": 4096,
+      "temperature": 0,
+      "seed": 1000
+    },
+    "engine": {
+      "path": "<local Stockfish 19 executable>",
+      "seconds": 30,
+      "hash_mb": 64,
+      "nodes": 10000,
+      "skill": 0,
+      "threads": 1
+    },
+    "llm_color": "white",
+    "initial_fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+    "max_plies": 300,
+    "draw_policy": "automatically claim available draws",
+    "retries": 0
+  },
+  "runtime_identities": [
+    {
+      "engine_sha256": "45bc8e4969147db9c2eb533810637994619bff0eacc81ccfd9854394901bcbd0",
+      "model_digest": "6488c96fa5faab64bb65cbd30d4289e20e6130ef535a93ef9a49f42eda893ea7",
+      "ollama_version": "0.34.1",
+      "packages": {
+        "chess": "1.11.2",
+        "httpx": "0.28.1",
+        "llm-chess-harness": "0.1.0"
+      },
+      "python": "3.12.14"
+    }
+  ],
+  "warnings": [],
+  "scheduled_games": 4,
+  "finalized_games": 4,
+  "scored_games": 4,
+  "unscored_games": 0,
+  "status_counts": {
+    "forfeit": 4
+  },
+  "reason_counts": {
+    "illegal_move": 4
+  },
+  "results": {
+    "wins": 0,
+    "draws": 0,
+    "losses": 4
+  },
+  "results_by_color": {
+    "white": {
+      "wins": 0,
+      "draws": 0,
+      "losses": 2,
+      "scored": 2
+    },
+    "black": {
+      "wins": 0,
+      "draws": 0,
+      "losses": 2,
+      "scored": 2
+    }
+  },
+  "score_rate": 0.0,
+  "attempts": {
+    "total": 4,
+    "by_status": {
+      "forfeit": 4
+    },
+    "superseded": 0
+  },
+  "llm_turns": {
+    "requested": 8,
+    "responses": 8,
+    "applied": 4,
+    "timeouts": 0,
+    "failed": 0,
+    "unanswered": 0
+  },
+  "legal_move_rate": 0.5,
+  "llm_latency_seconds": {
+    "samples": 8,
+    "total": 1.7820000000001528,
+    "mean": 0.2227500000000191,
+    "median": 0.20400000000000773,
+    "p95": 0.3280000000000314,
+    "min": 0.20300000000003138,
+    "max": 0.3280000000000314
+  },
+  "recorded_token_usage": {
+    "prompt_tokens": 3406,
+    "output_tokens": 40,
+    "responses_with_usage": 8
+  },
+  "games": [
+    {
+      "index": 1,
+      "pair": 1,
+      "llm_color": "white",
+      "seed": 1000,
+      "run_id": "20260918T015406Z-13a3ed30-000001",
+      "attempt_count": 1,
+      "status": "forfeit",
+      "reason": "illegal_move",
+      "result": "0-1",
+      "plies": 2,
+      "llm_outcome": "losses",
+      "llm_turns": {
+        "requested": 2,
+        "responses": 2,
+        "applied": 1,
+        "timeouts": 0,
+        "failed": 0,
+        "unanswered": 0
+      },
+      "llm_latency_seconds": {
+        "samples": 2,
+        "total": 0.5310000000000628,
+        "mean": 0.2655000000000314,
+        "median": 0.2655000000000314,
+        "p95": 0.3280000000000314,
+        "min": 0.20300000000003138,
+        "max": 0.3280000000000314
+      },
+      "rejected_uci": "e4c5",
+      "artifact_sha256": {
+        "manifest.json": "89664c33589ff351be6f7e090d9ba3bec6c5b7ea9e7f7ff87947e2554601a3df",
+        "events.jsonl": "3725882f9c8cafbaa630b8bc1c6968a3a6c2053b78b25169990566913cc637a0",
+        "game.pgn": "d13c0988d5a6b1d94558706bec246dea5321e84ff2ec09410778c04a50e62dc7",
+        "summary.json": "c40c8314f902b38bde0bc0e458e7f50d932de25c3e18abc714b5fcff2f919bad"
+      }
+    },
+    {
+      "index": 2,
+      "pair": 1,
+      "llm_color": "black",
+      "seed": 1000,
+      "run_id": "20260918T015406Z-13a3ed30-000002",
+      "attempt_count": 1,
+      "status": "forfeit",
+      "reason": "illegal_move",
+      "result": "1-0",
+      "plies": 3,
+      "llm_outcome": "losses",
+      "llm_turns": {
+        "requested": 2,
+        "responses": 2,
+        "applied": 1,
+        "timeouts": 0,
+        "failed": 0,
+        "unanswered": 0
+      },
+      "llm_latency_seconds": {
+        "samples": 2,
+        "total": 0.4070000000000391,
+        "mean": 0.20350000000001955,
+        "median": 0.20350000000001955,
+        "p95": 0.20400000000000773,
+        "min": 0.20300000000003138,
+        "max": 0.20400000000000773
+      },
+      "rejected_uci": "e7e5",
+      "artifact_sha256": {
+        "manifest.json": "a515086e1cb9b59a818435b7749e3e9a73f1abcdc0d7870de74c2ac33f210b2b",
+        "events.jsonl": "d669f7109932f2946950f8ba7da5373b56fae715f656cf354c83ded8468e266d",
+        "game.pgn": "1c557b963a828a785b3a6350b85e16b82a9c8e5b59731a49ffbe3f7cbed1ef46",
+        "summary.json": "99db8fa7cce091d75add60eee92f8e07a0f86f463cad20275855d497e90fd7aa"
+      }
+    },
+    {
+      "index": 3,
+      "pair": 2,
+      "llm_color": "white",
+      "seed": 1001,
+      "run_id": "20260918T015406Z-13a3ed30-000003",
+      "attempt_count": 1,
+      "status": "forfeit",
+      "reason": "illegal_move",
+      "result": "0-1",
+      "plies": 2,
+      "llm_outcome": "losses",
+      "llm_turns": {
+        "requested": 2,
+        "responses": 2,
+        "applied": 1,
+        "timeouts": 0,
+        "failed": 0,
+        "unanswered": 0
+      },
+      "llm_latency_seconds": {
+        "samples": 2,
+        "total": 0.4070000000000391,
+        "mean": 0.20350000000001955,
+        "median": 0.20350000000001955,
+        "p95": 0.20400000000000773,
+        "min": 0.20300000000003138,
+        "max": 0.20400000000000773
+      },
+      "rejected_uci": "e4d5",
+      "artifact_sha256": {
+        "manifest.json": "b1ba67abc0d6043d30b505d824a8d07c71388ad8cab8c718663551833325e02c",
+        "events.jsonl": "17d522af0df6fc71b617ccf98b48d626b01c7fcd493e18e4235270676139093a",
+        "game.pgn": "596c9d2d12377c1c620099c5b07871a35b6ca501b1a87b4d6d84927c20b0d7f2",
+        "summary.json": "3c3af901aa383f626ba78d8e6bbdc5747b4f1eb976fae4396554ea990a3ee724"
+      }
+    },
+    {
+      "index": 4,
+      "pair": 2,
+      "llm_color": "black",
+      "seed": 1001,
+      "run_id": "20260918T015406Z-13a3ed30-000004",
+      "attempt_count": 1,
+      "status": "forfeit",
+      "reason": "illegal_move",
+      "result": "1-0",
+      "plies": 3,
+      "llm_outcome": "losses",
+      "llm_turns": {
+        "requested": 2,
+        "responses": 2,
+        "applied": 1,
+        "timeouts": 0,
+        "failed": 0,
+        "unanswered": 0
+      },
+      "llm_latency_seconds": {
+        "samples": 2,
+        "total": 0.4370000000000118,
+        "mean": 0.2185000000000059,
+        "median": 0.2185000000000059,
+        "p95": 0.2189999999999941,
+        "min": 0.21800000000001774,
+        "max": 0.2189999999999941
+      },
+      "rejected_uci": "e7e6",
+      "artifact_sha256": {
+        "manifest.json": "10ffaf42b7566ec2b3c61eac8e920947a03626742661440a512cebd6f192a83a",
+        "events.jsonl": "e0b953b6ee48ead1711bd170238afa24e206d430188b52c4ba9d7b8e1b879bbb",
+        "game.pgn": "bdd523ecf0ea9fa24bd75c175724ed443756cf87f17cd21861498d40188f0d23",
+        "summary.json": "67b8f297b77e18ec698fb097cb63679bc98871207c71b49d9771b5de1238b7cb"
+      }
+    }
+  ],
+  "definitions": {
+    "score_rate": "(wins + 0.5 * draws) / scored games; includes forfeits, excludes all unscored games",
+    "legal_move_rate": "applied LLM moves / requested LLM turns in the latest attempt of each scheduled game",
+    "latency": "recorded LLM response, timeout and failure durations in latest attempts; warm-up excluded; p95 is nearest-rank",
+    "attempts": "older attempts are retained and counted separately; never added to game scores or turn metrics",
+    "tokens": "sum of reported Ollama prompt_eval_count/eval_count, including thinking when reported; missing usage is not estimated"
+  },
+  "validation": {
+    "local_date": "2026-09-17",
+    "game_runner_commit": "5eb99ac",
+    "reporter_commit": "a54524f",
+    "hardware": {
+      "gpu": "NVIDIA GeForce RTX 5070",
+      "gpu_memory_mib": 12227,
+      "nvidia_driver": "591.44",
+      "os": "Windows"
+    },
+    "command": "python -m chess_harness.batch --pairs 2 --seed 1000",
+    "note": "Only the absolute engine path was replaced for portability. Raw run artifacts remain in the local ignored runs directory. This is a small workflow and legality baseline, not an Elo estimate."
+  }
+}

@@ -1,10 +1,10 @@
 # LLM Chess Harness
 
-Stage 1 will run unassisted LLMs against UCI chess engines, with saved games,
-live viewing, and benchmarks. The Python environment, package scaffold, and
-Stockfish integration are ready, along with single-game and sequential batch runners
-and a local browser viewer with replay. Batches support interruption recovery
-and aggregate benchmark reports. The setup below covers
+Stage 1 runs unassisted LLMs against UCI chess engines, with saved games,
+live viewing, paired batch benchmarks, interruption recovery and aggregate reports.
+The local Stage 1 workflow is complete; see the [acceptance checks and recorded
+baseline](docs/stage1-validation.md). Stage 2 will add legal-move assistance.
+The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
 ## Environment
@@ -294,7 +294,7 @@ in `move_failed` events; received partial responses, errors and elapsed time are
 retained when available and displayed by the viewer. A connection failure before
 the non-streaming response arrives cannot preserve tokens the server never sent.
 
-The controls were tested with local GGUF inference on Ollama 0.34.0. Other backends
+The controls were tested with local GGUF inference on Ollama 0.34.0 and 0.34.1. Other backends
 and future versions still need validation; matching a version floor alone does not
 establish identical behavior. If a backend reports an unfamiliar context error,
 it remains an infrastructure failure with the original error saved.

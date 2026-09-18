@@ -1,0 +1,43 @@
+[Event "Unassisted LLM vs engine"]
+[Site "?"]
+[Date "2026.09.17"]
+[Round "?"]
+[White "qwen3.5:9b"]
+[Black "Stockfish 19"]
+[Result "0-1"]
+[Termination "illegal_move"]
+
+1. e4 c5 0-1
+
+[Event "Unassisted LLM vs engine"]
+[Site "?"]
+[Date "2026.09.17"]
+[Round "?"]
+[White "Stockfish 19"]
+[Black "qwen3.5:9b"]
+[Result "1-0"]
+[Termination "illegal_move"]
+
+1. Nf3 e6 2. e4 1-0
+
+[Event "Unassisted LLM vs engine"]
+[Site "?"]
+[Date "2026.09.17"]
+[Round "?"]
+[White "qwen3.5:9b"]
+[Black "Stockfish 19"]
+[Result "0-1"]
+[Termination "illegal_move"]
+
+1. e4 d6 0-1
+
+[Event "Unassisted LLM vs engine"]
+[Site "?"]
+[Date "2026.09.17"]
+[Round "?"]
+[White "Stockfish 19"]
+[Black "qwen3.5:9b"]
+[Result "1-0"]
+[Termination "illegal_move"]
+
+1. e4 e6 2. Nc3 1-0

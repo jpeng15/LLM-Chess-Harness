@@ -11,9 +11,9 @@ from .limits import PlayerFailure
 
 
 class Recorder:
-    def __init__(self, directory):
+    def __init__(self, directory, *, exist_ok=False):
         self.directory = directory
-        directory.mkdir(parents=True, exist_ok=False)
+        directory.mkdir(parents=True, exist_ok=exist_ok)
         self.sequence = 0
 
     def write(self, name, value):

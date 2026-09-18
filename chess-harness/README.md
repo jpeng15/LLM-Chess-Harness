@@ -3,8 +3,8 @@
 Stage 1 will run unassisted LLMs against UCI chess engines, with saved games,
 live viewing, and benchmarks. The Python environment, package scaffold, and
 Stockfish integration are ready, along with single-game and sequential batch runners
-and a local browser viewer with replay. Batch resume and aggregate benchmark reports
-are later milestones. The setup below covers
+and a local browser viewer with replay. Batches support interruption recovery;
+aggregate benchmark reports are the next milestone. The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
 ## Environment
@@ -372,10 +372,43 @@ Exit code 0 means the schedule finished, including any forfeits or truncations;
 exit code 1 means it stopped because of interruption or infrastructure failure.
 A batch marked `completed` does not mean every game had a scored chess result.
 
-This first version does not resume or retry games. Running the command again
-creates a new batch. A forced process kill or power loss may leave progress marked
-`running`; it is a saved checkpoint, not a liveness indicator. Automated resume
-and aggregate scoring/reporting are the next milestones.
+### Resume a batch
+
+Pass the batch directory printed at startup (replace `<batch-id>`):
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.batch --resume "runs/batches/<batch-id>"
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness.batch --resume "runs/batches/<batch-id>"
+```
+
+Resume uses the saved settings, colors and seeds; configuration overrides are
+rejected. Finished games, including forfeits and deliberate truncations, are
+skipped. Interrupted or infrastructure-failed games restart from the original
+position in a new `-attempt-0002` (then `0003`, etc.) run folder. All earlier
+attempts remain intact and appear in `progress.json`. Resume does not retry an
+individual move or feed earlier failures back to the model. Another failure stops
+the batch again; there is no automatic retry loop.
+
+Recovery checks each attempt's saved summary or complete terminal event, handling
+a crash between game completion and the batch checkpoint. A saved `running`
+status alone is not evidence of a live process. An operating-system file lock
+prevents two runners from executing the same batch, and is released on process
+exit. The `.lock` file stays in place; do not delete it to bypass a running process.
+Use a local filesystem; network filesystem lock semantics have not been validated.
+
+The first initialized model pins its digest, engine hash, Ollama version, Python
+version and package versions in `identity.json`. Later games verify that identity
+before making a move. Changed environments, prompt versions or limit policies
+require a new batch; settings are never silently replaced during resume. Invalid
+or contradictory saved records stop recovery for inspection. Running the normal
+command without `--resume` always creates a new batch.
 
 ## Tests
 

@@ -12,13 +12,14 @@ import httpx
 from .game import Recorder, run_game
 from .players import EnginePlayer, OllamaPlayer
 from .limits import PlayerFailure, require_supported_ollama
+from .storage import runtime_identity
 
 
 def new_run_id():
     return datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ") + "-" + uuid.uuid4().hex[:8]
 
 
-def run_match(config, directory, *, batch=None):
+def run_match(config, directory, *, batch=None, expected_identity=None):
     """Create fresh players and logs; return the referee's unmodified summary."""
     recorder = Recorder(directory)
     manifest = {"run_id": directory.name, "config": config, "python": platform.python_version()}
@@ -46,6 +47,8 @@ def run_match(config, directory, *, batch=None):
         recorder.event("warmup_completed", response=llm.warmup())
         manifest["loaded_model"] = llm.verify_loaded_context()
         recorder.write("manifest.json", manifest)
+        if expected_identity is not None and runtime_identity(manifest) != expected_identity:
+            raise PlayerFailure("environment_mismatch", "Model, engine, or runtime differs from the batch's first initialized game. Start a new batch for changed environments.")
         recorder.event("context_verified", requested=config["llm"]["context"],
                        effective=manifest["loaded_model"]["context_length"])
         color = config["llm_color"] == "white"

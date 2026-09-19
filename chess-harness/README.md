@@ -126,6 +126,74 @@ tokens are not a suitable reasoning budget. The default model is Qwen3.6 35B-A3B
 The earlier Qwen3.5 9B benchmark records remain available, but replaying those
 experiments requires downloading `qwen3.5:9b` again and selecting it explicitly.
 
+## Fixed-position benchmarks and comparisons
+
+Stage 2 includes a bundled 12-position suite, split into six development and six
+validation positions. It covers openings, checks, mate in one, castling,
+promotion, en passant, endgames and recent move reversals. Use development
+positions for prompt tuning and reserve validation positions for later checks.
+The small suite is a starting point, not an Elo test or comprehensive chess exam.
+
+From this directory, run a single-decision probe of each position:
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.benchmark --mode legal-moves --split development --seed 2100
+.\.venv\Scripts\python.exe -m chess_harness.benchmark --mode legal-moves --split validation --seed 2100
+```
+
+On Linux/macOS, replace `.\.venv\Scripts\python.exe` with `./.venv/bin/python`
+and add `--engine "$STOCKFISH"`. Use `--mode unassisted` for the baseline or
+`--model NAME` for another installed model. Each probe uses the normal strict
+referee and budgets and stops after one LLM decision. A successful nonterminal
+move is recorded as `truncated: max_plies`; it is not a game result.
+
+Reports and the exact suite snapshot/hash are saved to `runs/positions/<id>/`.
+Individual probe runs, prompts, replies, PGNs and manifests are stored in `runs/`
+and can be replayed in the viewer. Expected moves are scoring annotations only;
+they never enter the model's input. Mate fixtures enumerate every mate-in-one
+answer. Other fixtures measure legality and move quality without claiming that
+one annotated move is the only good answer. Reports include token counts and
+latency; missing token usage is not estimated. An infrastructure failure stops
+the suite and preserves partial results. Start a new benchmark to rerun it;
+position-suite resume is not implemented, and incomplete suites cannot be compared.
+
+Supply `--suite PATH` for a custom JSON suite, following
+[`positions.json`](src/chess_harness/positions.json): schema version 1, a name,
+and positions with unique `id`, `split`, `fen`, optional legal UCI `moves` history,
+and optional `expected_moves`. Positions already terminal under the draw policy
+are rejected. History is preserved when prompting and replaying.
+
+Full-game batches can cycle through the same fixtures, assigning both LLM colors
+to each starting position before moving to the next:
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.batch --mode legal-moves --positions src/chess_harness/positions.json --split validation --pairs 6 --seed 2100
+```
+
+The six pairs above cover all six validation positions. Use a custom suite of
+opening positions for a conventional opening-balanced match. The suite is copied
+into the batch plan; resume uses that snapshot even if the source file changes.
+Previously saved single-start batches remain compatible.
+
+Compare two complete position benchmarks or two game batches:
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.compare --left runs/positions/LEFT_ID --right runs/positions/RIGHT_ID --output runs/comparisons/example
+```
+
+For games, pass `runs/batches/ID` directories instead. The output directory must
+be new. Comparisons show results, latency, token usage where applicable, every
+changed configuration field, runtime identities and paired position choices.
+Position comparisons require the same suite bytes, split and case order. For
+games, unmatched schedules and incomplete batches are flagged. Matching LLM
+seeds does not seed Stockfish's reduced-strength move selection. Treat budget
+changes, different runtimes and small samples as limitations, not proof of an
+isolated model or prompt improvement.
+
+File publication retries brief Windows access/sharing conflicts for up to 775 ms
+of backoff. Persistent errors still surface and leave the previous published file
+intact; the existing game-batch recovery path remains available.
+
 ## Stockfish
 
 Engine downloads are ignored by Git and must be installed separately on every new

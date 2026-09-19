@@ -13,6 +13,7 @@ from .game import Recorder, run_game
 from .players import EnginePlayer, OllamaPlayer
 from .limits import PlayerFailure, require_supported_ollama
 from .storage import runtime_identity
+from .suites import initial_board
 
 
 def new_run_id():
@@ -52,7 +53,7 @@ def run_match(config, directory, *, batch=None, expected_identity=None):
         recorder.event("context_verified", requested=config["llm"]["context"],
                        effective=manifest["loaded_model"]["context_length"])
         color = config["llm_color"] == "white"
-        summary = run_game(chess.Board(config["initial_fen"]), {color: llm, not color: engine}, color, config["max_plies"], recorder)
+        summary = run_game(initial_board(config), {color: llm, not color: engine}, color, config["max_plies"], recorder)
     except (Exception, KeyboardInterrupt) as exc:
         summary = {"status": "interrupted" if isinstance(exc, KeyboardInterrupt) else "infrastructure_failure",
                    "result": "*", "reason": exc.reason if isinstance(exc, PlayerFailure) else "initialization_failure", "error": str(exc)}

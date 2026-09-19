@@ -6,31 +6,37 @@ from pathlib import Path
 import re
 import sys
 
+import chess
+
 from .cli import add_game_arguments, game_config, positive
 from .game import Recorder
 from .runner import new_run_id, run_match
 from .limits import LIMIT_POLICY_VERSION
 from .players import prompt_version
 from .storage import batch_lock, read_json, runtime_identity, saved_summary
+from .suites import load_suite, position_config, validate_positions
 
 FINISHED = {"completed", "forfeit", "truncated"}
 
 
-def schedule(batch_id, pairs, seed):
+def schedule(batch_id, pairs, seed, positions=None):
     """Pair the same seed and starting position across both LLM colors."""
     if pairs <= 0:
         raise ValueError("pairs must be positive")
+    if positions is not None:
+        validate_positions(positions)
     return [{"index": 2 * pair + offset + 1, "pair": pair + 1,
              "run_id": f"{batch_id}-{2 * pair + offset + 1:06d}",
-             "llm_color": color, "seed": seed + pair}
+             "llm_color": color, "seed": seed + pair,
+             **({"position": positions[pair % len(positions)]} if positions is not None else {})}
             for pair in range(pairs)
             for offset, color in enumerate(("white", "black"))]
 
 
-def run_batch(config, output, pairs):
+def run_batch(config, output, pairs, positions=None):
     """Persist the plan first, then checkpoint progress around each game."""
     batch_id = new_run_id()
-    games = schedule(batch_id, pairs, config["llm"]["seed"])
+    games = schedule(batch_id, pairs, config["llm"]["seed"], positions)
     recorder = Recorder(output / "batches" / batch_id)
     plan = {"schema_version": 1, "batch_id": batch_id,
             "created_at": datetime.now(timezone.utc).isoformat(),
@@ -40,6 +46,8 @@ def run_batch(config, output, pairs):
                            "seed_policy": "base_seed_plus_zero_based_pair_index",
                            "on_infrastructure_failure": "stop"},
             "games": games}
+    if positions is not None:
+        plan["positions"] = deepcopy(positions)
     with batch_lock(recorder.directory):
         recorder.write("batch.json", plan)
         return execute(plan, new_progress(plan), recorder, output)
@@ -58,7 +66,7 @@ def load_batch(directory):
         raise ValueError("Expected the original runs/batches/<batch-id> directory")
     if plan["schema_version"] != 1 or not re.fullmatch(r"[A-Za-z0-9_-]+", plan["batch_id"]):
         raise ValueError("Unsupported batch format or invalid batch ID")
-    expected = schedule(plan["batch_id"], plan["scheduling"]["pairs"], plan["config"]["llm"]["seed"])
+    expected = schedule(plan["batch_id"], plan["scheduling"]["pairs"], plan["config"]["llm"]["seed"], plan.get("positions"))
     if plan["games"] != expected:
         raise ValueError("Saved schedule does not match its pair/seed policy")
     path = directory / "progress.json"
@@ -92,7 +100,7 @@ def reconcile(plan, progress, output):
             manifest_path = directory / "manifest.json"
             if manifest_path.exists():
                 manifest = read_json(manifest_path)
-                config = deepcopy(plan["config"])
+                config = position_config(plan["config"], job["position"]) if "position" in job else deepcopy(plan["config"])
                 config["llm_color"], config["llm"]["seed"] = job["llm_color"], job["seed"]
                 if manifest["config"] != config or manifest.get("batch", {}).get("id") != plan["batch_id"]:
                     raise ValueError("Attempt manifest differs from the saved schedule")
@@ -167,7 +175,7 @@ def execute(plan, progress, recorder, output):
             entry.pop("summary", None)
             entry.pop("error", None)
             checkpoint()
-            game_settings = deepcopy(config)
+            game_settings = position_config(config, game["position"]) if "position" in game else deepcopy(config)
             game_settings["llm_color"] = game["llm_color"]
             game_settings["llm"]["seed"] = game["seed"]
             print(f"Game {game['index']}/{len(games)}: LLM {game['llm_color']}, seed {game['seed']}", flush=True)
@@ -211,6 +219,8 @@ def main(argv=None):
     parser.add_argument("--pairs", type=positive, default=5,
                         help="number of White/Black pairs (default: 5, or 10 games)")
     parser.add_argument("--resume", type=Path, help="resume runs/batches/<batch-id> using its saved settings")
+    parser.add_argument("--positions", type=Path, help="position suite for paired starting positions (cycled across pairs)")
+    parser.add_argument("--split", choices=("development", "validation", "all"), default="validation")
     args = parser.parse_args(argv)
     try:
         if args.resume is not None:
@@ -220,7 +230,10 @@ def main(argv=None):
             progress = resume_batch(args.resume)
         else:
             config = game_config(parser, args)
-            progress = run_batch(config, args.output, args.pairs)
+            if args.positions and args.fen != chess.STARTING_FEN:
+                parser.error("--positions and a custom --fen cannot be combined")
+            positions = load_suite(args.positions, args.split)["positions"] if args.positions else None
+            progress = run_batch(config, args.output, args.pairs, positions)
     except (OSError, ValueError, KeyError, RuntimeError) as exc:
         print(f"Batch error: {exc}", file=sys.stderr)
         return 1

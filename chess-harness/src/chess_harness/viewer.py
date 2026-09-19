@@ -9,6 +9,8 @@ from urllib.parse import parse_qs, urlsplit
 import chess
 import chess.svg
 
+from .suites import initial_board
+
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = Path(__file__).with_name("web")
 
@@ -43,7 +45,7 @@ def snapshot(directory):
     for line in lines:
         if line.endswith(b"\n"):
             events.append(json.loads(line))
-    positions = [{"fen": config["initial_fen"], "san": "Start", "uci": None}]
+    positions = [{"fen": initial_board(config).fen(), "san": "Start", "uci": None}]
     responses = []
     pending = None
     summary = None

@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "name": "stage2-v1",
+  "positions": [
+    {
+      "id": "opening-white",
+      "category": "opening",
+      "split": "development",
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1"
+    },
+    {
+      "id": "opening-black",
+      "category": "opening",
+      "split": "development",
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "e2e4"
+      ]
+    },
+    {
+      "id": "castle-white",
+      "category": "castling",
+      "split": "development",
+      "fen": "r3k2r/8/8/8/8/8/8/R3K2R w KQkq - 0 1"
+    },
+    {
+      "id": "mate-white",
+      "category": "mate-in-one",
+      "split": "development",
+      "fen": "7k/5Q2/6K1/8/8/8/8/8 w - - 0 1",
+      "expected_moves": [
+        "f7f8",
+        "f7e8",
+        "f7h7",
+        "f7g7"
+      ]
+    },
+    {
+      "id": "defend-check",
+      "category": "defense",
+      "split": "development",
+      "fen": "4r2k/8/8/8/8/8/8/4K3 w - - 0 1"
+    },
+    {
+      "id": "recent-reversal",
+      "category": "history",
+      "split": "development",
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "g1f3",
+        "g8f6",
+        "f3g1",
+        "b8c6"
+      ]
+    },
+    {
+      "id": "italian-midgame",
+      "category": "development",
+      "split": "validation",
+      "fen": "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1",
+      "moves": [
+        "e2e4",
+        "e7e5",
+        "g1f3",
+        "b8c6",
+        "f1c4",
+        "f8c5",
+        "c2c3",
+        "g8f6",
+        "d2d3",
+        "d7d6"
+      ]
+    },
+    {
+      "id": "castle-black",
+      "category": "castling",
+      "split": "validation",
+      "fen": "r3k2r/8/8/8/8/8/8/R3K2R b KQkq - 0 1"
+    },
+    {
+      "id": "promotion-white",
+      "category": "promotion",
+      "split": "validation",
+      "fen": "7k/P7/8/8/8/8/8/7K w - - 0 1"
+    },
+    {
+      "id": "en-passant-black",
+      "category": "en-passant",
+      "split": "validation",
+      "fen": "7k/8/8/8/3Pp3/8/8/7K b - d3 0 2"
+    },
+    {
+      "id": "mate-black",
+      "category": "mate-in-one",
+      "split": "validation",
+      "fen": "8/8/8/8/8/6k1/5q2/7K b - - 0 1",
+      "expected_moves": [
+        "f2h2",
+        "f2g2",
+        "f2f1",
+        "f2e1"
+      ]
+    },
+    {
+      "id": "pawn-endgame",
+      "category": "endgame",
+      "split": "validation",
+      "fen": "8/6pk/7p/8/8/7P/6PK/8 w - - 0 1"
+    }
+  ]
+}

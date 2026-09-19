@@ -78,6 +78,8 @@ def build_report(directory):
                "run_id": entry.get("current_run_id"), "attempt_count": len(attempts),
                "status": status, "reason": reason, "result": summary.get("result", "*"),
                "plies": summary.get("plies"), "llm_outcome": None}
+        if "position" in job:
+            row["position"] = job["position"]
         result = row["result"]
         if status in ("completed", "forfeit"):
             if result not in ("1-0", "0-1", "1/2-1/2"):

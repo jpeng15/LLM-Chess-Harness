@@ -17,4 +17,4 @@ dependencies = [
 where = ["src"]
 
 [tool.setuptools.package-data]
-chess_harness = ["web/*.html", "web/*.css", "web/*.js"]
+chess_harness = ["web/*.html", "web/*.css", "web/*.js", "positions.json"]

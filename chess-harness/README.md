@@ -194,6 +194,46 @@ File publication retries brief Windows access/sharing conflicts for up to 775 ms
 of backoff. Persistent errors still surface and leave the previous published file
 intact; the existing game-batch recovery path remains available.
 
+## Post-game move-quality analysis
+
+Analyze saved games after play finishes, using an independent Stockfish process
+at skill 20 with strength limiting disabled. This never sends evaluations to
+Qwen or changes its saved games. By default each search gets 100,000 nodes:
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.analyze --batch runs/batches/BATCH_ID --output runs/analysis/example
+.\.venv\Scripts\python.exe -m chess_harness.analyze --benchmark runs/positions/BENCHMARK_ID --output runs/analysis/positions-example
+```
+
+Use `--run runs/RUN_ID` for one game, `--engine PATH` to override the saved engine
+path, and `--nodes N` to change analysis effort. The output directory must be new.
+On Linux/macOS, use `./.venv/bin/python` and the appropriate engine path.
+
+The analyzer replays and validates saved moves/FENs, preserves fixture and game
+history, and compares each applied LLM move with the engine's preferred move.
+It saves engine identity, node budgets, source-file hashes, principal variations,
+centipawn loss, engine-detected missed/allowed mates and immediate reversals.
+`--blunder-cp` defaults to 200: a blunder is a loss of at least that many
+centipawns, loss of an engine-detected forced mate, or allowing a mate when the
+best line avoids it. This is a configurable diagnostic, not a human rating.
+
+Mate values stay separate from centipawn averages. Finite-search disagreements
+(the chosen move scores higher in its separate search) are counted and their
+negative losses clamp to zero. Invalid/unapplied answers are excluded from
+move-quality averages and counted separately. Defensive repetitions can be good;
+reversal counts are not automatically blunders. A failure leaves an explicitly
+incomplete analysis; it cannot be used in a quality comparison.
+
+Include quality metrics in a saved-run comparison by supplying both analyses:
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.compare --left runs/positions/LEFT_ID --right runs/positions/RIGHT_ID --left-analysis runs/analysis/left --right-analysis runs/analysis/right --output runs/comparisons/quality-example
+```
+
+Analysis source runs and configurations must match the compared results, and
+both analyses must use identical engine and scoring settings. These checks avoid
+comparing different analysis budgets as if they were model improvements.
+
 ## Stockfish
 
 Engine downloads are ignored by Git and must be installed separately on every new

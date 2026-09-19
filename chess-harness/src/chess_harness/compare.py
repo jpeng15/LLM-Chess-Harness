@@ -1,11 +1,13 @@
 """Compare saved position benchmarks or game batches without running a model."""
 import argparse
+from copy import deepcopy
 from pathlib import Path
 import sys
 
 from .game import Recorder
 from .report import build_report
 from .storage import atomic_write, batch_lock, read_json
+from .suites import position_config
 
 
 def flatten(value, prefix=""):
@@ -92,14 +94,48 @@ def markdown(report):
     return "\n".join(lines) + "\n"
 
 
+def add_quality(comparison, left, right, left_analysis, right_analysis):
+    for result, analysis in ((left, left_analysis), (right, right_analysis)):
+        if analysis.get("kind") != "move-quality" or not analysis.get("complete"):
+            raise ValueError("Expected complete move-quality analyses")
+        rows = result["cases"] if result["kind"] == "positions" else result["games"]
+        if [r["run_id"] for r in rows] != [r["run_id"] for r in analysis["sources"]]:
+            raise ValueError("Analysis sources do not match the compared runs")
+        for row, source in zip(rows, analysis["sources"]):
+            if result["kind"] == "positions":
+                expected = position_config(result["config"], row["position"], probe=True)
+            else:
+                expected = position_config(result["config"], row["position"]) if "position" in row else deepcopy(result["config"])
+                expected["llm_color"] = row["llm_color"]
+                expected["llm"]["seed"] = row["seed"]
+            if source["config"] != expected:
+                raise ValueError("Analysis configuration differs from benchmark")
+    if left_analysis["settings"] != right_analysis["settings"]:
+        raise ValueError("Use identical engine/analysis settings for a quality comparison")
+    comparison["analysis_settings"] = left_analysis["settings"]
+    for key in left_analysis["metrics"]:
+        comparison["metrics"]["quality." + key] = {
+            "left": left_analysis["metrics"][key], "right": right_analysis["metrics"][key]}
+    comparison["warnings"].append("Move quality is a finite-search estimate; mate scores are excluded from centipawn averages.")
+    return comparison
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--left", type=Path, required=True)
     parser.add_argument("--right", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True, help="new comparison directory")
+    parser.add_argument("--left-analysis", type=Path, help="optional analysis directory for the left runs")
+    parser.add_argument("--right-analysis", type=Path, help="optional analysis directory for the right runs")
     args = parser.parse_args(argv)
+    if bool(args.left_analysis) != bool(args.right_analysis):
+        parser.error("Provide both --left-analysis and --right-analysis")
     try:
-        result = compare(load_result(args.left.resolve()), load_result(args.right.resolve()))
+        left, right = load_result(args.left.resolve()), load_result(args.right.resolve())
+        result = compare(left, right)
+        if args.left_analysis:
+            add_quality(result, left, right, read_json(args.left_analysis / "analysis.json"),
+                        read_json(args.right_analysis / "analysis.json"))
         recorder = Recorder(args.output)
         recorder.write("comparison.json", result)
         atomic_write(args.output / "comparison.md", markdown(result))

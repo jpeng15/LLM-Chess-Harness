@@ -4,7 +4,10 @@ Stage 1 runs unassisted LLMs against UCI chess engines, with saved games,
 live viewing, paired batch benchmarks, interruption recovery and aggregate reports.
 The local Stage 1 workflow is complete; see the [acceptance checks and recorded
 baseline](docs/stage1-validation.md). Stage 2's legal-move prompt assistance is
-available through `--mode legal-moves`; unassisted remains the default.
+available through `--mode legal-moves`; unassisted remains the default. The local
+Stage 2 workflow includes fixed-position benchmarks, varied-start paired games,
+saved-run comparisons, independent move-quality analysis and thinking-mode
+experiments. Stage 3 model-callable chess tools are not implemented yet.
 The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
@@ -233,6 +236,43 @@ Include quality metrics in a saved-run comparison by supplying both analyses:
 Analysis source runs and configurations must match the compared results, and
 both analyses must use identical engine and scoring settings. These checks avoid
 comparing different analysis budgets as if they were model improvements.
+
+## Controlled assistance and thinking experiments
+
+Run the three Stage 2 conditions on identical validation positions with one command:
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness.experiment --split validation --seed 2200 --tokens 1024 --context 4096 --move-seconds 180
+```
+
+On Linux/macOS, use `./.venv/bin/python` and add `--engine "$STOCKFISH"`.
+The conditions are `unassisted`, `assisted`, and `assisted-thinking`. The suite,
+model, seed, temperature and all budgets are held fixed; only the assistance
+prompt and thinking flag change. Select a subset with
+`--conditions assisted assisted-thinking`. Do not use `--mode` or `--think` with
+this command; the named conditions set those fields.
+
+Experiment defaults are 1,024 output tokens, 4,096 context tokens and 180 seconds
+per decision. These are experiment budgets, not changes to normal game defaults.
+Thinking uses the same output allowance as the final move and can exhaust it.
+Output cutoffs remain forfeits; there are no extra retries or automatic budget
+increases. Increase `--tokens`, `--context` and `--move-seconds` explicitly for a
+separate experiment if needed, subject to local memory and latency limits.
+
+Results go to `runs/experiments/<id>/experiment.md` and `experiment.json`, with
+the immutable plan, individual condition reports, independent engine analyses
+and all pairwise comparisons. Each condition's full position logs remain under
+`runs/` for replay. `--analysis-nodes` controls the common post-hoc analysis budget.
+The model/runtime identity is checked across conditions before generating moves.
+Infrastructure failures stop later conditions and preserve partial outputs;
+restart as a new experiment rather than silently mixing retries into the sample.
+
+This is one sample per fixture per condition in a fixed execution order. Cache,
+system load and model nondeterminism can affect measurements. Quality averages
+exclude invalid moves and mate scores, so always read them alongside legality,
+cutoffs and mate counts. Use more independent fixtures and seeds for broader
+claims. Run development fixtures while tuning; once validation results influence
+a prompt change, reserve a new validation set for that change.
 
 ## Stockfish
 

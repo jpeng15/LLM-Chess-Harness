@@ -46,12 +46,12 @@ def markdown(report):
     return "\n".join(lines) + "\n"
 
 
-def run_benchmark(config, output, suite):
+def run_benchmark(config, output, suite, *, expected_identity=None):
     benchmark_id = new_run_id()
     recorder = Recorder(output / "positions" / benchmark_id)
     plan = {"schema_version": 1, "id": benchmark_id, "config": deepcopy(config), "suite": suite}
     recorder.write("plan.json", plan)
-    rows, identity = [], None
+    rows, identity = [], expected_identity
     report = summarize(plan, rows)
     recorder.write("report.json", report)
     for index, position in enumerate(suite["positions"], 1):

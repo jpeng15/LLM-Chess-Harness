@@ -8,6 +8,7 @@ import chess
 import chess.pgn
 
 from .limits import PlayerFailure
+from .storage import atomic_write
 
 
 class Recorder:
@@ -19,9 +20,7 @@ class Recorder:
 
     def write(self, name, value):
         path = self.directory / name
-        temporary = path.with_suffix(path.suffix + ".tmp")
-        temporary.write_text(json.dumps(value, indent=2) + "\n", encoding="utf-8")
-        temporary.replace(path)
+        atomic_write(path, json.dumps(value, indent=2) + "\n")
 
     def event(self, kind, **fields):
         self.sequence += 1
@@ -37,9 +36,7 @@ class Recorder:
                              "Black": players[chess.BLACK].name, "Result": result,
                              "Termination": reason, "Date": datetime.now().strftime("%Y.%m.%d")})
         path = self.directory / "game.pgn"
-        temporary = path.with_suffix(".pgn.tmp")
-        temporary.write_text(str(game) + "\n", encoding="utf-8")
-        temporary.replace(path)
+        atomic_write(path, str(game) + "\n")
 
 
 def run_game(board, players, llm_color, max_plies, recorder):

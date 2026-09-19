@@ -11,7 +11,7 @@ import chess
 
 from .batch import FINISHED, load_batch, reconcile
 from .game import Recorder
-from .storage import batch_lock, events, read_json, runtime_identity
+from .storage import atomic_write, batch_lock, events, read_json, runtime_identity
 
 
 def duration_stats(values):
@@ -174,9 +174,7 @@ def main(argv=None):
             recorder = Recorder(destination, exist_ok=True)
             recorder.write("report.json", report)
             path = destination / "report.md"
-            temporary = path.with_suffix(".md.tmp")
-            temporary.write_text(markdown(report), encoding="utf-8")
-            temporary.replace(path)
+            atomic_write(path, markdown(report))
         print(markdown(report))
         print(f"Saved report.json and report.md in {destination}")
         return 0

@@ -2,6 +2,38 @@
 from contextlib import contextmanager
 import json
 import os
+from pathlib import Path
+import tempfile
+import time
+
+
+def atomic_write(path, text):
+    """Publish a complete UTF-8 file, tolerating brief Windows reader locks.
+
+    Unique same-directory temporary files keep replacement atomic. Only Windows
+    access/sharing/lock violations are retried, for at most 775 ms total delay;
+    persistent failures still reach the caller and leave the previous file intact.
+    """
+    fd, name = tempfile.mkstemp(prefix=path.name + ".", suffix=".tmp", dir=path.parent)
+    temporary = Path(name)
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8", newline="\n") as output:
+            output.write(text)
+            output.flush()
+            os.fsync(output.fileno())
+        for attempt, delay in enumerate((0.025, 0.05, 0.1, 0.2, 0.4, 0)):
+            try:
+                temporary.replace(path)
+                break
+            except OSError as exc:
+                if getattr(exc, "winerror", None) not in (5, 32, 33) or attempt == 5:
+                    raise
+                time.sleep(delay)
+    finally:
+        try:
+            temporary.unlink(missing_ok=True)
+        except OSError:
+            pass  # Do not mask the original write/replacement error.
 
 
 def read_json(path):

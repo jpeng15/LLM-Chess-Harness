@@ -10,6 +10,9 @@ Stage 2 workflow includes fixed-position benchmarks, varied-start paired games,
 saved-run comparisons, independent move-quality analysis and thinking-mode
 experiments. Stage 3 begins with `--mode rules-tools`: model-directed hypothetical
 move simulation and board inspection, using chess rules without engine advice.
+The optional [LLM-authored validation-tools phase](docs/stage3-authored-validators.md)
+now has its [versioned contract, rules API, and factual witness verifier](docs/validator-contract.md).
+Generated code execution and frozen validator artifacts are not implemented yet.
 The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 

@@ -1,6 +1,7 @@
 """Player adapters with explicit unassisted and legal-move prompt modes."""
 import asyncio
 from dataclasses import dataclass
+import json
 import time
 
 import chess
@@ -10,7 +11,8 @@ import httpx
 from .limits import PlayerFailure, context_error, cutoff_reason
 
 PROMPT_VERSION = "unassisted-v2"
-PROMPT_VERSIONS = {"unassisted": PROMPT_VERSION, "legal-moves": "legal-moves-v2"}
+PROMPT_VERSIONS = {"unassisted": PROMPT_VERSION, "legal-moves": "legal-moves-v2",
+                   "constrained-legal": "constrained-legal-v1", "rules-tools": "rules-tools-v2"}
 
 
 def prompt_version(mode):
@@ -36,15 +38,58 @@ SYSTEM_PROMPT = (
 )
 
 
-ASSISTED_SYSTEM_PROMPT = SYSTEM_PROMPT + (
-    "\nThe position includes every legal move in sorted UCI order, without rankings. "
-    "Choose exactly one of the listed moves."
+ASSISTED_ADVICE = (
     "\nPlay for a win while keeping your king and pieces safe. Before choosing, consider "
     "the opponent's threats and likely reply. When there is no urgent tactic, develop "
     "inactive knights and bishops, improve king safety, and coordinate your pieces. "
     "Use the history to avoid pointless back-and-forth moves, but repeat if it is the "
     "best defense or secures a draw. The first legal move is not necessarily the best move."
 )
+
+
+ASSISTED_SYSTEM_PROMPT = SYSTEM_PROMPT + (
+    "\nThe position includes every legal move in sorted UCI order, without rankings. "
+    "Choose exactly one of the listed moves."
+) + ASSISTED_ADVICE
+
+CONSTRAINED_SYSTEM_PROMPT = (
+    "You play standard chess. Choose a move for the side to move in the supplied position.\n"
+    "Return exactly one JSON object with a single key, move, whose value is one of the "
+    "listed legal moves in lowercase UCI coordinate notation. For promotion, include "
+    "the final piece letter. The history uses SAN, but the move value must use UCI. "
+    "Follow the supplied JSON schema. Do not include extra keys, markdown, or explanations. "
+    "The list contains every legal move in sorted order, without rankings."
+) + ASSISTED_ADVICE
+
+
+def legal_move_schema(board):
+    moves = sorted(move.uci() for move in board.legal_moves)
+    if not moves:
+        raise ValueError("Cannot request a constrained move from a position with no legal moves")
+    return {"type": "object", "properties": {"move": {"type": "string", "enum": moves}},
+            "required": ["move"], "additionalProperties": False}
+
+
+def unique_json_object(pairs):
+    result = {}
+    for key, value in pairs:
+        if key in result:
+            raise ValueError("Duplicate JSON key")
+        result[key] = value
+    return result
+
+
+def constrained_move(content, board):
+    """Validate the entire response; never extract a move from malformed JSON."""
+    try:
+        value = json.loads(content, object_pairs_hook=unique_json_object)
+        if not isinstance(value, dict) or set(value) != {"move"} or not isinstance(value["move"], str):
+            raise ValueError("Expected exactly one string field named move")
+    except (ValueError, RecursionError):
+        return content, "malformed_response"
+    move = value["move"]
+    # Exact enum membership also rejects whitespace, SAN and invalid coordinates.
+    return move, None if move in legal_move_schema(board)["properties"]["move"]["enum"] else "illegal_move"
 
 
 def observation(board: chess.Board, mode="unassisted") -> str:
@@ -57,18 +102,27 @@ def observation(board: chess.Board, mode="unassisted") -> str:
         replay.push(move)
     rows = str(board).splitlines()
     diagram = "\n".join(f"{8-i} {row}" for i, row in enumerate(rows))
+    instruction = ("Choose your move. Reply with only the origin and destination squares "
+                   "in lowercase UCI notation (4 characters, or 5 for promotion). Do not use SAN.")
+    if mode == "constrained-legal":
+        instruction = 'Choose your move. Return only a JSON object with the single field "move" containing a listed UCI move.'
+    elif mode == "rules-tools":
+        instruction = 'This is real position 0. Return a JSON simulate or play action matching the supplied schema.'
     text = (
         f"Side to move: {'White' if board.turn else 'Black'}\nFEN: {board.fen()}\n"
         f"Board (uppercase White, lowercase Black, dot empty):\n{diagram}\n  a b c d e f g h\n"
         f"Move history: {' '.join(history) or 'none'}\n"
-        "Choose your move. Reply with only the origin and destination squares "
-        "in lowercase UCI notation (4 characters, or 5 for promotion). Do not use SAN."
+        f"{instruction}"
     )
-    if mode == "legal-moves":
+    if mode in ("legal-moves", "constrained-legal", "rules-tools"):
         moves = sorted(move.uci() for move in board.legal_moves)
         text += (f"\nLegal moves in UCI notation (sorted, not ranked; {len(moves)} moves):\n"
                  + " ".join(moves)
-                 + "\nChoose exactly one move from this list. Return only that UCI move.")
+                 + ("\nThese are the legal moves at real position 0."
+                    if mode == "rules-tools" else
+                    "\nChoose exactly one move from this list as the JSON move value."
+                    if mode == "constrained-legal" else
+                    "\nChoose exactly one move from this list. Return only that UCI move."))
     return text
 
 
@@ -91,7 +145,9 @@ class OllamaPlayer:
         system = SYSTEM_PROMPT
         if self.mode == "legal-moves":
             system = ASSISTED_SYSTEM_PROMPT
-        return {
+        elif self.mode == "constrained-legal":
+            system = CONSTRAINED_SYSTEM_PROMPT
+        request = {
             "model": self.name, "stream": False, "think": self.config["think"],
             "truncate": False, "shift": False,
             "keep_alive": "30m",
@@ -100,6 +156,11 @@ class OllamaPlayer:
             "messages": [{"role": "system", "content": system},
                          {"role": "user", "content": observation(board, self.mode)}],
         }
+
+        if self.mode == "constrained-legal":
+            request["format"] = legal_move_schema(board)
+            request["messages"][1]["content"] += "\nJSON schema: " + json.dumps(request["format"])
+        return request
 
     async def _post(self, path, body, seconds):
         # Covers connection, response generation, and body receipt with one deadline.
@@ -141,7 +202,10 @@ class OllamaPlayer:
             raise PlayerFailure("incomplete_response", "Incomplete or unexpected Ollama response.", raw=data, elapsed_seconds=elapsed)
         if data.get("done_reason") not in ("stop", "length"):
             raise PlayerFailure("unknown_stop_reason", "Ollama did not report a recognized completion reason.", raw=data, elapsed_seconds=elapsed)
-        return Reply(message["content"], elapsed, data, cutoff_reason(data, self.config["tokens"]))
+        text, failure = message["content"], cutoff_reason(data, self.config["tokens"])
+        if self.mode == "constrained-legal" and failure is None:
+            text, failure = constrained_move(text, board)
+        return Reply(text, elapsed, data, failure)
 
     def verify_loaded_context(self):
         with httpx.Client(base_url=self.config["url"], timeout=10, trust_env=False) as client:

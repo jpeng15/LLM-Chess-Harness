@@ -29,6 +29,25 @@ def listed_moves(board):
 
 
 class ModeTests(unittest.TestCase):
+    def test_thinking_defaults_and_explicit_baseline_reach_ollama(self):
+        parser = argparse.ArgumentParser()
+        add_game_arguments(parser)
+        with tempfile.TemporaryDirectory() as temp:
+            engine_path = Path(temp) / "engine"
+            engine_path.write_bytes(b"test")
+            for flags, expected in [([], (True, 4096, 8192, 180)),
+                                    (["--no-think", "--tokens", "64", "--context", "4096",
+                                      "--move-seconds", "60"], (False, 64, 4096, 60))]:
+                with self.subTest(flags=flags):
+                    config = game_config(parser, parser.parse_args(["--engine", str(engine_path), *flags]))
+                    self.assertEqual(tuple(config["llm"][key] for key in ("think", "tokens", "context", "seconds")), expected)
+                    request = OllamaPlayer(config["llm"]).request(chess.Board())
+                    self.assertEqual(request["think"], expected[0])
+                    self.assertEqual(request["options"]["num_predict"], expected[1])
+                    self.assertEqual(request["options"]["num_ctx"], expected[2])
+        self.assertTrue(parser.parse_args(["--think"]).think)
+        self.assertEqual(parser.parse_args(["--no-think"]).tokens, 4096)
+
     def test_unassisted_prompt_matches_stage1_baseline(self):
         messages = OllamaPlayer(CONFIG).request(chess.Board())["messages"]
         # Captured from the Stage 1 baseline opening request, before assisted mode.
@@ -111,7 +130,7 @@ class ModeTests(unittest.TestCase):
 
             with patch("httpx.Client.get", get), patch("chess_harness.runner.EnginePlayer") as engine, \
                     patch.object(OllamaPlayer, "warmup", return_value={"done": True}), \
-                    patch.object(OllamaPlayer, "verify_loaded_context", return_value={"context_length": 4096}), \
+                    patch.object(OllamaPlayer, "verify_loaded_context", return_value={"context_length": config["llm"]["context"]}), \
                     patch.object(OllamaPlayer, "choose", choose), redirect_stdout(io.StringIO()):
                 engine.return_value.name = "test-engine"
                 del engine.return_value.request

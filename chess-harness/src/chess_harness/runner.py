@@ -14,6 +14,7 @@ from .players import EnginePlayer, OllamaPlayer
 from .limits import PlayerFailure, require_supported_ollama
 from .storage import runtime_identity
 from .suites import initial_board
+from .tool_player import RulesToolPlayer
 
 
 def new_run_id():
@@ -43,7 +44,11 @@ def run_match(config, directory, *, batch=None, expected_identity=None):
         engine = EnginePlayer(config["engine"])
         manifest["engine_id"] = engine.engine.id
         recorder.write("manifest.json", manifest)
-        llm = OllamaPlayer({**config["llm"], "mode": config["mode"]})
+        if config["mode"] == "rules-tools":
+            llm = RulesToolPlayer({**config["llm"], "mode": config["mode"], "tools": config["tools"]},
+                                  emit=recorder.event)
+        else:
+            llm = OllamaPlayer({**config["llm"], "mode": config["mode"]})
         print("Warming model (excluded from game timing)...", flush=True)
         recorder.event("warmup_completed", response=llm.warmup())
         manifest["loaded_model"] = llm.verify_loaded_context()

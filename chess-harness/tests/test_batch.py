@@ -138,7 +138,7 @@ class BatchTests(unittest.TestCase):
     def test_cli_validation_and_exit_codes(self):
         base = ["--engine", str(self.engine), "--output", str(self.output)]
         for flags in (["--pairs", "0"], ["--pairs", "-1"], ["--pairs", "1.5"],
-                      ["--llm-color", "white"], ["--tokens", "4096"], ["--fen", "bad"]):
+                      ["--llm-color", "white"], ["--tokens", "4096", "--context", "4096"], ["--fen", "bad"]):
             with self.subTest(flags=flags), redirect_stderr(io.StringIO()), self.assertRaises(SystemExit) as caught:
                 batch.main(base + flags)
             self.assertEqual(caught.exception.code, 2)

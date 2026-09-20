@@ -75,4 +75,33 @@ test('mode labels distinguish assisted and unassisted games',async()=>{
   await app.poll();
   assert.equal(app.element('mode').textContent,'Unassisted');
   assert.equal(app.element('prompt').textContent,'unassisted-v2');
+  app.state.config.mode='constrained-legal';app.state.config.prompt_version='constrained-legal-v1';
+  await app.poll();
+  assert.equal(app.element('mode').textContent,'Schema-constrained legal');
+  assert.equal(app.element('prompt').textContent,'constrained-legal-v1');
+});
+
+test('constrained moves display raw JSON separately from the chosen move',async()=>{
+  const app=controller();await app.ready();
+  app.state.responses=[{player:'LLM',ply:1,text:'e2e4',content:'{"move":"e2e4"}',seconds:1,applied:true}];
+  app.state.sequence++;
+  await app.poll();
+  const rendered=JSON.stringify(app.element('responses').children);
+  assert.match(rendered,/Raw model output/);
+  assert.ok(rendered.includes(JSON.stringify('{"move":"e2e4"}')));
+});
+
+test('live rules exploration is separate from the real board and moves',async()=>{
+  const app=controller();await app.ready();
+  app.state.config.mode='rules-tools';
+  app.state.tool_activity=[{type:'simulation_result',ply:3,call:1,result:{position:1,parent:0,move:'e2e4',side_to_move:'black',legal_moves:['e7e5']}}];
+  app.state.sequence++;
+  await app.poll();
+  assert.equal(app.element('mode').textContent,'Rules-tool assisted');
+  const rendered=JSON.stringify(app.element('responses').children);
+  assert.match(rendered,/hypothetical positions/);
+  assert.match(rendered,/simulation result/);
+  assert.match(rendered,/e7e5/);
+  assert.match(app.element('board').alt,/after 1 half-moves/);
+  assert.equal(app.element('moves').children.length,1);
 });

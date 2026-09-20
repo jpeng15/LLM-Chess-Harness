@@ -31,7 +31,10 @@ class Recorder:
 
     def pgn(self, board, players, result="*", reason="in_progress"):
         game = chess.pgn.Game.from_board(board)
-        event = "Legal-move-assisted LLM vs engine" if self.mode == "legal-moves" else "Unassisted LLM vs engine"
+        event = {"legal-moves": "Legal-move-assisted LLM vs engine",
+                 "rules-tools": "Rules-tool-assisted LLM vs engine",
+                 "constrained-legal": "Schema-constrained legal LLM vs engine",
+                 "unassisted": "Unassisted LLM vs engine"}[self.mode]
         game.headers.update({"Event": event, "White": players[chess.WHITE].name,
                              "Black": players[chess.BLACK].name, "Result": result,
                              "Termination": reason, "Date": datetime.now().strftime("%Y.%m.%d")})
@@ -81,7 +84,7 @@ def run_game(board, players, llm_color, max_plies, recorder):
                 reason = reply.failure_reason
                 if color != llm_color:
                     status = "infrastructure_failure"
-                elif reason == "output_limit":
+                elif reason in ("output_limit", "malformed_response", "illegal_move", "invalid_tool_action"):
                     status, result = "forfeit", "0-1" if color else "1-0"
                 else:
                     status = "truncated"

@@ -28,27 +28,38 @@ def turn_metrics(directory, llm_color):
     durations = []
     usage = Counter(prompt_tokens=0, output_tokens=0, responses_with_usage=0)
     is_llm = False
+    detailed_calls = False
+
+    def add_usage(raw):
+        if isinstance(raw, dict):
+            present = False
+            for field, key in (("prompt_eval_count", "prompt_tokens"), ("eval_count", "output_tokens")):
+                value = raw.get(field)
+                if type(value) is int and value >= 0:
+                    usage[key] += value
+                    present = True
+            usage["responses_with_usage"] += int(present)
+
     for event in events(directory):
         kind = event["type"]
         if kind == "move_requested":
+            detailed_calls = False
             is_llm = chess.Board(event["fen"]).turn == (llm_color == "white")
             if is_llm:
                 counts["requested"] += 1
         elif is_llm:
+            if kind == "model_call_requested":
+                detailed_calls = True
+            elif kind == "model_call_response":
+                detailed_calls = True
+                add_usage(event.get("raw"))
             if kind in ("move_response", "move_timeout", "move_failed"):
                 counts[{"move_response": "responses", "move_timeout": "timeouts", "move_failed": "failed"}[kind]] += 1
                 seconds = event.get("elapsed_seconds")
                 if type(seconds) in (int, float) and math.isfinite(seconds) and seconds >= 0:
                     durations.append(seconds)
-                raw = event.get("raw")
-                if isinstance(raw, dict):
-                    present = False
-                    for field, key in (("prompt_eval_count", "prompt_tokens"), ("eval_count", "output_tokens")):
-                        value = raw.get(field)
-                        if type(value) is int and value >= 0:
-                            usage[key] += value
-                            present = True
-                    usage["responses_with_usage"] += int(present)
+                if not detailed_calls:
+                    add_usage(event.get("raw"))
             elif kind == "move_applied":
                 counts["applied"] += 1
     counts["unanswered"] = counts["requested"] - counts["responses"] - counts["timeouts"] - counts["failed"]

@@ -17,7 +17,8 @@ from .storage import atomic_write, read_json
 from .suites import DEFAULT_SUITE, load_suite
 
 CONDITIONS = {"unassisted": ("unassisted", False),
-              "assisted": ("legal-moves", False), "assisted-thinking": ("legal-moves", True)}
+              "assisted": ("legal-moves", False), "assisted-thinking": ("legal-moves", True),
+              "constrained": ("constrained-legal", False)}
 
 
 def condition_config(config, name):
@@ -96,10 +97,12 @@ def run_experiment(config, output, suite, names, nodes):
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     add_game_arguments(parser, include_color=False)
-    parser.set_defaults(tokens=1024, move_seconds=180)
+    # Named conditions select thinking; keep this controlled experiment's budgets stable.
+    parser.set_defaults(think=False, tokens=1024, context=4096, move_seconds=180)
     parser.add_argument("--suite", type=Path, default=DEFAULT_SUITE)
     parser.add_argument("--split", choices=("development", "validation", "all"), default="validation")
-    parser.add_argument("--conditions", nargs="+", choices=CONDITIONS, default=list(CONDITIONS))
+    parser.add_argument("--conditions", nargs="+", choices=CONDITIONS,
+                        default=["unassisted", "assisted", "assisted-thinking"])
     parser.add_argument("--analysis-nodes", type=positive, default=100000)
     args = parser.parse_args(argv)
     if len(set(args.conditions)) != len(args.conditions) or len(args.conditions) < 2:

@@ -4,10 +4,12 @@ Stage 1 runs unassisted LLMs against UCI chess engines, with saved games,
 live viewing, paired batch benchmarks, interruption recovery and aggregate reports.
 The local Stage 1 workflow is complete; see the [acceptance checks and recorded
 baseline](docs/stage1-validation.md). Stage 2's legal-move prompt assistance is
-available through `--mode legal-moves`; unassisted remains the default. The local
+available through `--mode legal-moves`, with JSON-schema enforcement through
+`--mode constrained-legal`; unassisted remains the default. The local
 Stage 2 workflow includes fixed-position benchmarks, varied-start paired games,
 saved-run comparisons, independent move-quality analysis and thinking-mode
-experiments. Stage 3 model-callable chess tools are not implemented yet.
+experiments. Stage 3 begins with `--mode rules-tools`: model-directed hypothetical
+move simulation and board inspection, using chess rules without engine advice.
 The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 
@@ -96,8 +98,8 @@ The harness defaults to the official Ollama model
 Its Q4_K_M download is approximately 23 GB. The MoE architecture activates about
 3B parameters per token, but all model weights still need storage and memory.
 On a 12 GB GPU, expect a CPU/GPU split and significant system RAM use; unload
-other models first. `ollama ps` shows the actual placement. Start at 4,096 context
-tokens and measure performance on your machine before increasing the budget.
+other models first. `ollama ps` shows the actual placement. The non-thinking
+comparison below uses 4,096 context tokens; normal thinking runs default to 8,192.
 
 Download once (on Windows, if `ollama` is not on PATH, use
 `& "$env:LOCALAPPDATA\Programs\Ollama\ollama.exe"` in its place):
@@ -111,13 +113,13 @@ Run a short assisted game from this directory:
 **Windows:**
 
 ```powershell
-.\.venv\Scripts\python.exe -m chess_harness --model qwen3.6:35b-a3b --mode legal-moves --context 4096 --tokens 64 --move-seconds 60 --max-plies 20
+.\.venv\Scripts\python.exe -m chess_harness --model qwen3.6:35b-a3b --mode legal-moves --no-think --context 4096 --tokens 64 --move-seconds 60 --max-plies 20
 ```
 
 **Linux/macOS:**
 
 ```bash
-./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --model qwen3.6:35b-a3b --mode legal-moves --context 4096 --tokens 64 --move-seconds 60 --max-plies 20
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --model qwen3.6:35b-a3b --mode legal-moves --no-think --context 4096 --tokens 64 --move-seconds 60 --max-plies 20
 ```
 
 Remove `--max-plies 20` for the normal 300-ply cap. Use the same `--model` option
@@ -125,7 +127,9 @@ with `chess_harness.batch` to benchmark it. Start a new batch for a different
 model; saved batches cannot switch models on resume. These commands leave
 thinking disabled and retain the existing budgets for comparison. Thinking-mode
 experiments need a larger, separately recorded token/time budget; 64 output
-tokens are not a suitable reasoning budget. The default model is Qwen3.6 35B-A3B.
+tokens are not a suitable reasoning budget. To use the normal thinking defaults,
+omit `--no-think`, `--context 4096`, `--tokens 64`, and `--move-seconds 60`.
+The default model is Qwen3.6 35B-A3B.
 The earlier Qwen3.5 9B benchmark records remain available, but replaying those
 experiments requires downloading `qwen3.5:9b` again and selecting it explicitly.
 
@@ -246,7 +250,10 @@ Run the three Stage 2 conditions on identical validation positions with one comm
 ```
 
 On Linux/macOS, use `./.venv/bin/python` and add `--engine "$STOCKFISH"`.
-The conditions are `unassisted`, `assisted`, and `assisted-thinking`. The suite,
+The default conditions are `unassisted`, `assisted`, and `assisted-thinking`.
+An optional `constrained` condition uses schema-constrained legal moves with
+thinking disabled; select `--conditions assisted constrained` to compare it
+with prompt-only assistance. The suite,
 model, seed, temperature and all budgets are held fixed; only the assistance
 prompt and thinking flag change. Select a subset with
 `--conditions assisted assisted-thinking`. Do not use `--mode` or `--think` with
@@ -404,10 +411,16 @@ On **Linux or macOS**, use the `STOCKFISH` variable set above in the same termin
 If you open another terminal, set `STOCKFISH` again or supply the full executable
 path directly. Quote paths so directory names containing spaces work correctly.
 
-Defaults: LLM plays White, thinking disabled, 4,096-token context, 64 output
-tokens, 60-second deadline per LLM turn, and no retries. Stockfish uses skill 0,
+Defaults: LLM plays White, thinking enabled, 8,192-token context (16,384 in rules-tool mode), 4,096 output
+tokens (including thinking), 180-second deadline per LLM turn, and no retries. Stockfish uses skill 0,
 one thread, 64 MiB hash and 10,000 nodes per turn. Skill 0 is still a strong
 opponent and is not a human Elo rating. Warm-up has a separate 180-second timeout.
+
+Use `--no-think` to disable reasoning; budget options remain independently
+configurable. These defaults apply to new games, batches, and position benchmarks.
+Resumed batches retain their saved configuration. Controlled experiments keep
+their separate defaults and select thinking through named conditions.
+Thinking can still exhaust its output budget; a cutoff remains a forfeit.
 
 For a short smoke test or a different configuration:
 
@@ -416,7 +429,7 @@ For a short smoke test or a different configuration:
 ```powershell
 .\.venv\Scripts\python.exe -m chess_harness --max-plies 8
 .\.venv\Scripts\python.exe -m chess_harness --llm-color black --engine-skill 5
-.\.venv\Scripts\python.exe -m chess_harness --think --tokens 2048 --move-seconds 120
+.\.venv\Scripts\python.exe -m chess_harness --no-think --tokens 64 --context 4096 --move-seconds 60
 .\.venv\Scripts\python.exe -m chess_harness --help
 ```
 
@@ -425,7 +438,7 @@ For a short smoke test or a different configuration:
 ```bash
 ./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --max-plies 8
 ./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --llm-color black --engine-skill 5
-./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --think --tokens 2048 --move-seconds 120
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --no-think --tokens 64 --context 4096 --move-seconds 60
 ./.venv/bin/python -m chess_harness --help
 ```
 
@@ -535,6 +548,138 @@ Explicit `--mode unassisted` and the default retain the Stage 1 prompt.
 For a controlled comparison, keep colors, seeds, starting position, model, engine
 settings and budgets matched, and use the same ply cap in both modes. The
 eight-ply command above is a smoke check, not the full baseline comparison.
+
+### Schema-constrained legal moves
+
+Use `--mode constrained-legal` to restrict Ollama's completed JSON response to
+the legal moves in the current position. This constrains **output**, rather than
+just asking the model to obey a list in its input. The model still chooses the
+move; no engine evaluates or ranks its choices.
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness --mode constrained-legal --no-think --tokens 128 --context 4096 --move-seconds 60 --max-plies 20
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --mode constrained-legal --no-think --tokens 128 --context 4096 --move-seconds 60 --max-plies 20
+```
+
+These commands explicitly disable thinking and allow space for the JSON wrapper.
+Remove `--max-plies 20` for the normal 300-ply cap. The same mode and budget
+options work with `chess_harness.batch` and `chess_harness.benchmark`. Thinking
+is a separate setting: selecting this mode alone does not disable it.
+
+Each request passes a JSON schema in Ollama's `format` field. The required `move`
+string has an `enum` containing every current legal UCI move, including all legal
+promotion choices, castling and en passant. Extra properties are forbidden. The
+schema is rebuilt every turn and included in the prompt and saved request.
+The response must be exactly an object such as `{"move":"e2e4"}`.
+
+The adapter checks the complete JSON object, rejects duplicate/extra keys and
+non-string values, and verifies exact membership in the legal set. It forwards
+only the validated move to the existing referee, which checks legality again.
+Malformed JSON and illegal values forfeit; there are no repairs, retries or
+fallback moves. Output cutoffs are checked before parsing and still forfeit,
+even if the returned JSON appears complete. Timeouts and context limits keep
+their existing policies. Constraints cannot guarantee a completed response or
+good chess play, and a server/schema failure never silently switches to plain text.
+
+Runs record `constrained-legal-v1` and appear as **Schema-constrained legal** in
+the viewer and PGN. Events retain the original JSON in `raw.message.content`
+alongside the extracted UCI move in `text`; the viewer has expandable raw output.
+Old prompt modes and saved batches retain their original response protocol.
+Start a new batch when changing modes and keep comparison budgets matched.
+
+### Rules-only simulation tools (Stage 3)
+
+In `--mode rules-tools`, Qwen can apply a hypothetical move to a temporary board,
+inspect its legal replies, and continue that line or explore another candidate.
+Stockfish remains the opponent. The simulation code uses only `python-chess`
+rules; it supplies no engine searches, rankings, scores, or recommended replies.
+
+**Windows:**
+
+```powershell
+.\.venv\Scripts\python.exe -m chess_harness --mode rules-tools --no-think --tokens 1024 --context 16384 --move-seconds 90 --tool-calls 4 --tool-depth 4 --max-plies 8
+```
+
+**Linux/macOS:**
+
+```bash
+./.venv/bin/python -m chess_harness --engine "$STOCKFISH" --mode rules-tools --no-think --tokens 1024 --context 16384 --move-seconds 90 --tool-calls 4 --tool-depth 4 --max-plies 8
+```
+
+Use the same options with `chess_harness.batch` or `chess_harness.benchmark`.
+The explicit `--no-think` disables thinking; the global defaults are unchanged.
+Remove the short smoke-test ply cap to play a normal game.
+
+Each real turn starts with **position 0**, a copy of the real board including its
+history. Qwen returns a schema-constrained JSON action:
+
+```json
+{"action":"simulate","position":0,"move":"e2e4"}
+```
+
+The tool returns a new position ID, FEN, text board, side to move, complete legal
+move list, piece counts, capture details, check status, and any terminal outcome.
+Both the initial prompt and simulated positions include exact piece locations,
+checking-piece squares, attack maps for occupied squares, pinned pieces, and
+all legal captures, checks, castling moves and en passant moves for the side to
+move. Attack maps include pinned pieces; they are not lists of legal captures or
+judgments of whether a piece is safe. The model is told this distinction.
+These facts are computed directly from board rules, without engine evaluation.
+For example, Qwen could simulate `e7e5` from position 1, or simulate `d2d4` from
+position 0 to explore a different branch. It chooses every hypothetical reply.
+Castling, en passant, promotions, and history-dependent draws use the same rules
+as the referee. A terminal branch cannot be extended; draw claims follow the
+harness's automatic-claim policy.
+
+After at least **one model-selected simulation**, Qwen can commit:
+
+```json
+{"action":"play","move":"e2e4"}
+```
+
+The final move must be legal at **position 0**, and may be a move that was not
+simulated. Only that move reaches the real board. Hypothetical positions and IDs
+are discarded after each turn. There is no fallback move or automatic ranking.
+This uses Ollama's JSON-schema output with a local action dispatcher, not its
+native function-calling protocol.
+
+Defaults allow at most **4 simulations per turn**, with branches at most **4 plies
+deep** (one move per simulation). `--tool-calls` accepts 1–16; `--tool-depth`
+accepts 1–8. At the call limit the schema permits only a final move. The entire
+turn has one `--move-seconds` deadline and one `--tokens` output budget shared
+across all model calls, including reasoning when enabled. Each new call receives
+the remaining output allowance. Conversation history grows within `--context`,
+without truncation or shifting. A missing output-usage counter stops the run
+because the shared budget cannot then be verified.
+
+Rules-tool mode defaults to **16,384 context tokens** so the richer board facts
+and hypothetical lines have more room. Other modes keep their existing context
+defaults. `--context` can override this; the actual loaded context is verified
+before play. A larger context window allows more retained information but does
+not enable thinking or increase the output budget. It can increase memory use
+and latency. Resumed batches always retain their recorded settings.
+
+Invalid actions forfeit without repair/retry. Output exhaustion and timeouts
+also forfeit; context overflow remains a truncated game. Tool results and raw
+model requests/responses are saved incrementally, including before failures or
+interruptions. Reports count one move decision per turn, sum usage from **every**
+model call without double-counting the final response, and time the entire turn.
+The viewer's expandable **Rules-tool exploration** shows hypothetical positions
+separately from the actual game board and PGN. Manifests save the tool policy,
+budgets, and `rules-tools-v2` prompt version for reproducibility.
+
+Tool use does not guarantee better play: Qwen must identify useful lines and
+judge them itself. Compare against `constrained-legal` with matched total budgets
+before drawing conclusions about strength. The existing controlled experiment
+command retains its Stage 2 conditions; rules-tool runs can be compared through
+the normal batch/position reports and `chess_harness.compare`.
 
 Each run has its own directory under `runs/`, containing `manifest.json` (configuration,
 model inventory/digests and versions), `events.jsonl` (requests, raw responses and timing),

@@ -6,11 +6,21 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
-from chess_harness.experiment import condition_config, run_experiment
+from chess_harness.experiment import condition_config, main, run_experiment
 from chess_harness.suites import load_suite
 
 
 class ExperimentTests(unittest.TestCase):
+    def test_cli_keeps_controlled_defaults_despite_game_thinking_default(self):
+        with tempfile.TemporaryDirectory() as temp, patch("chess_harness.experiment.run_experiment", return_value={"status": "completed"}) as run:
+            engine = Path(temp) / "engine"
+            engine.write_bytes(b"test")
+            self.assertEqual(main(["--engine", str(engine)]), 0)
+            config = run.call_args.args[0]
+            self.assertEqual(tuple(config["llm"][key] for key in ("think", "tokens", "context", "seconds")),
+                             (False, 1024, 4096, 180))
+            self.assertEqual(run.call_args.args[3], ["unassisted", "assisted", "assisted-thinking"])
+
     def test_conditions_isolate_assistance_and_thinking_with_fixed_budgets(self):
         base = {"mode": "unassisted", "prompt_version": "unassisted-v2", "max_plies": 300,
                 "llm": {"model": "test", "tokens": 1024, "context": 4096, "seconds": 180, "seed": 42, "think": False}}

@@ -27,7 +27,7 @@ function renderPosition(){
 function renderData(){
   if(!data)return;
   const summary=data.summary;
-  text('mode',data.config.mode==='legal-moves'?'Legal-move assisted':data.config.mode==='unassisted'?'Unassisted':data.config.mode||'Mode unavailable');
+  text('mode',({'legal-moves':'Legal-move assisted','constrained-legal':'Schema-constrained legal','rules-tools':'Rules-tool assisted','unassisted':'Unassisted'})[data.config.mode]||data.config.mode||'Mode unavailable');
   text('status',summary?summary.status.replaceAll('_',' '):(data.pending?'Thinking':data.sequence===0?'Preparing game':'Game in progress'));
   text('result',summary?.result||'');
   text('detail',summary?(summary.error||summary.reason.replaceAll('_',' ')):(data.pending?`${data.pending.player} is choosing a move.`:'Waiting for the next event.'));
@@ -40,6 +40,17 @@ function renderData(){
     button.onclick=()=>seek(i+1);$('moves').append(button);
   });
   $('responses').replaceChildren();text('response-count',String(data.responses.length));
+  if(data.tool_activity?.length){
+    const details=document.createElement('details'),title=document.createElement('summary');
+    title.textContent='Rules-tool exploration (hypothetical positions)';details.append(title);
+    for(const event of data.tool_activity){
+      const entry=document.createElement('details'),label=document.createElement('summary'),body=document.createElement('pre');
+      label.textContent=`Ply ${event.ply} · call ${event.call} · ${event.type.replaceAll('_',' ')}`;
+      body.textContent=JSON.stringify(event.result||event.raw||event.request,null,2);
+      entry.append(label,body);details.append(entry);
+    }
+    $('responses').append(details);
+  }
   for(const response of [...data.responses].reverse()){
     const row=document.createElement('article');row.className='response'+(response.applied?'':' pending');
     const meta=document.createElement('div');meta.className='response-meta';
@@ -49,6 +60,7 @@ function renderData(){
     if(!response.applied){const label=document.createElement('div');label.className='sub';label.textContent=summary?'Not applied to board':'Awaiting validation';row.append(label);}
     if(response.failure_reason){const reason=document.createElement('div');reason.className='sub';reason.textContent=response.failure_reason.replaceAll('_',' ');row.append(reason);}
     if(response.error){const error=document.createElement('pre');error.textContent=response.error;row.append(error);}
+    if(response.content&&response.content!==response.text){const details=document.createElement('details'),title=document.createElement('summary'),raw=document.createElement('pre');title.textContent='Raw model output';raw.textContent=response.content;details.append(title,raw);row.append(details);}
     if(response.thinking){const details=document.createElement('details'),title=document.createElement('summary'),reasoning=document.createElement('pre');title.textContent='Thinking output';reasoning.textContent=response.thinking;details.append(title,reasoning);row.append(details);}
     $('responses').append(row);
   }

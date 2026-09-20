@@ -47,12 +47,16 @@ def snapshot(directory):
             events.append(json.loads(line))
     positions = [{"fen": initial_board(config).fen(), "san": "Start", "uci": None}]
     responses = []
+    tool_activity = []
     pending = None
     summary = None
     for event in events:
         kind = event["type"]
         if kind == "move_requested":
             pending = event
+        elif kind in ("model_call_requested", "model_call_response", "simulation_result"):
+            tool_activity.append({**event, "ply": pending["ply"] if pending else len(positions),
+                                  "player": pending["player"] if pending else "Unknown"})
         elif kind in ("move_response", "move_failed"):
             raw = event.get("raw")
             message = raw.get("message", {}) if isinstance(raw, dict) else {}
@@ -60,6 +64,7 @@ def snapshot(directory):
             responses.append({"player": pending["player"] if pending else "Unknown",
                               "ply": pending["ply"] if pending else len(positions),
                               "text": event.get("text", message.get("content", "")),
+                              "content": message.get("content", ""),
                               "seconds": event.get("elapsed_seconds"),
                               "thinking": message.get("thinking", ""),
                               "failure_reason": event.get("failure_reason") or event.get("reason"),
@@ -78,6 +83,7 @@ def snapshot(directory):
     return {"id": directory.name, "config": config,
             "engine_name": manifest.get("engine_id", {}).get("name", "Stockfish"),
             "positions": positions, "responses": responses, "pending": pending,
+            "tool_activity": tool_activity,
             "summary": summary, "last_event": events[-1]["time"] if events else None,
             "sequence": events[-1]["sequence"] if events else 0}
 

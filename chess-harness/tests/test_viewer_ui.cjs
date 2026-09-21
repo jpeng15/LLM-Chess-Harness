@@ -9,6 +9,7 @@ function controller() {
   class Element {
     constructor() { this.dataset={}; this.children=[]; this.attributes={}; this.classList={toggle(){}}; this.imageRequests=0; }
     set src(value) { this.imageRequests++; this.source=value; }
+    set innerHTML(value) { throw new Error('Viewer content must be assigned as text, never HTML'); }
     setAttribute(key,value) { this.attributes[key]=value; }
     append(...children) { this.children.push(...children); }
     add(child) { this.append(child); }
@@ -102,6 +103,35 @@ test('live rules exploration is separate from the real board and moves',async()=
   assert.match(rendered,/hypothetical positions/);
   assert.match(rendered,/simulation result/);
   assert.match(rendered,/e7e5/);
+  assert.match(app.element('board').alt,/after 1 half-moves/);
+  assert.equal(app.element('moves').children.length,1);
+});
+
+test('authored source and heuristics render as text, with facts and errors distinguished',async()=>{
+  const app=controller();await app.ready();
+  const malicious='</pre><script>throw new Error("must remain text")</script>';
+  app.state.config.mode='authored-validator';
+  app.state.validator_artifact={artifact_id:'frozen-a',source_sha256:'a'.repeat(64),source_text:malicious,
+    setup_costs:{generation:{output_tokens:100}},manifest:{development:'dev-a'}};
+  app.state.validator_costs={requests:2,results:2,successes:1,errors:1,unanswered:0,
+    execution:{cpu_seconds:{samples:1,missing:1,total:0.1}},initialization:{invocations:1},model_inference:{responses:2}};
+  app.state.tool_activity=[
+    {type:'validator_preflight',ply:0,report:{status:'ok'}},
+    {type:'validator_result',ply:3,call:1,candidate:'e2e4',input:{candidate:'e2e4'},execution:{status:'ok',reason:'completed',
+      findings:{facts:[{kind:'capture_available',line:['e2e4','d7d5']}],heuristics:[{interpretation:malicious}]}}},
+    {type:'validator_result',ply:3,call:2,candidate:'g1f3',input:{candidate:'g1f3'},execution:{status:'error',reason:'timeout',stderr:malicious}}
+  ];
+  app.state.sequence++;
+  await app.poll();
+  assert.equal(app.element('mode').textContent,'LLM-authored validator');
+  const rendered=JSON.stringify(app.element('responses').children);
+  assert.match(rendered,/Frozen authored-validator artifact/);
+  assert.match(rendered,/Generation, development, and freeze costs/);
+  assert.match(rendered,/Verified factual findings/);
+  assert.match(rendered,/Heuristic interpretations \(not verified\)/);
+  assert.match(rendered,/Status: error · Reason: timeout/);
+  assert.match(rendered,/Missing measurements are unavailable/);
+  assert.ok(rendered.includes(JSON.stringify(malicious)));
   assert.match(app.element('board').alt,/after 1 half-moves/);
   assert.equal(app.element('moves').children.length,1);
 });

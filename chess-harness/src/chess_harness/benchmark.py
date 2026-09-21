@@ -12,12 +12,13 @@ from .report import duration_stats, turn_metrics
 from .runner import new_run_id, run_match
 from .storage import atomic_write, events, read_json, runtime_identity
 from .suites import DEFAULT_SUITE, load_suite, position_config
+from .validator_reporting import validator_cost_report, validator_metrics
 
 
 def summarize(plan, rows):
     durations = [r["elapsed_seconds"] for r in rows if r["elapsed_seconds"] is not None]
     scored = [r for r in rows if r["expected_moves"]]
-    return {"kind": "positions", "schema_version": 1, "id": plan["id"],
+    report = {"kind": "positions", "schema_version": 1, "id": plan["id"],
             "config": plan["config"], "suite": plan["suite"],
             "complete": len(rows) == len(plan["suite"]["positions"]) and
                         all(r["status"] not in ("infrastructure_failure", "interrupted") for r in rows),
@@ -29,6 +30,10 @@ def summarize(plan, rows):
             "prompt_tokens": sum(r["usage"].get("prompt_tokens", 0) for r in rows),
             "output_tokens": sum(r["usage"].get("output_tokens", 0) for r in rows),
             "cases": rows}
+    costs = [row["validator_costs"] for row in rows if row.get("validator_costs") is not None]
+    if costs:
+        report["validator_costs"] = validator_cost_report(costs, costs)
+    return report
 
 
 def markdown(report):
@@ -43,6 +48,11 @@ def markdown(report):
     lines += ["", "One decision per position. A legal nonterminal move ends at max_plies=1; this is not a game loss or draw.",
               "Expected-move accuracy covers annotated fixtures only. Raw responses, history, runtime identity and token usage are saved.",
               "Missing token usage is not estimated. Warmup is excluded from move latency. Engine analysis is never sent to the model."]
+    if "validator_costs" in report:
+        costs = report["validator_costs"]["all_attempts"]
+        lines += ["", f"Authored validator: {costs['requests']} requests; {costs['errors']} errors; "
+                  f"{costs['unanswered']} unanswered. Setup and detailed execution costs are separate in report.json.",
+                  "Validator wall times overlap turn latency; do not add them to it. Missing costs remain unavailable."]
     return "\n".join(lines) + "\n"
 
 
@@ -73,6 +83,9 @@ def run_benchmark(config, output, suite, *, expected_identity=None):
                      "legal": counts["applied"] == 1,
                      "expected_moves": expected, "expected_hit": bool(expected and move in expected),
                      "elapsed_seconds": durations[0] if durations else None, "usage": usage})
+        costs = validator_metrics(directory)
+        if costs is not None:
+            rows[-1]["validator_costs"] = costs
         report = summarize(plan, rows)
         recorder.write("report.json", report)
         atomic_write(recorder.directory / "report.md", markdown(report))

@@ -10,6 +10,7 @@ import chess
 import chess.svg
 
 from .suites import initial_board
+from .validator_reporting import validator_metrics_from_records
 
 ROOT = Path(__file__).resolve().parents[2]
 STATIC = Path(__file__).with_name("web")
@@ -54,8 +55,9 @@ def snapshot(directory):
         kind = event["type"]
         if kind == "move_requested":
             pending = event
-        elif kind in ("model_call_requested", "model_call_response", "simulation_result"):
-            tool_activity.append({**event, "ply": pending["ply"] if pending else len(positions),
+        elif kind in ("model_call_requested", "model_call_response", "simulation_result",
+                      "validator_requested", "validator_result", "validator_preflight"):
+            tool_activity.append({**event, "ply": pending["ply"] if pending else 0 if kind == "validator_preflight" else len(positions),
                                   "player": pending["player"] if pending else "Unknown"})
         elif kind in ("move_response", "move_failed"):
             raw = event.get("raw")
@@ -80,12 +82,18 @@ def snapshot(directory):
             pending = None
     # Derive terminal state from this same event snapshot so that a newly written
     # summary cannot race ahead of the moves shown on the board.
-    return {"id": directory.name, "config": config,
+    result = {"id": directory.name, "config": config,
             "engine_name": manifest.get("engine_id", {}).get("name", "Stockfish"),
             "positions": positions, "responses": responses, "pending": pending,
             "tool_activity": tool_activity,
             "summary": summary, "last_event": events[-1]["time"] if events else None,
             "sequence": events[-1]["sequence"] if events else 0}
+    costs = validator_metrics_from_records(manifest, events)
+    if costs is not None:
+        result["validator_costs"] = costs
+    if manifest.get("validator_artifact") is not None:
+        result["validator_artifact"] = manifest["validator_artifact"]
+    return result
 
 
 def make_handler(root):

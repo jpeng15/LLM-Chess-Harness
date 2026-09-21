@@ -2,6 +2,7 @@
 import argparse
 from collections import Counter
 from datetime import datetime, timezone
+import json
 import math
 from pathlib import Path
 import statistics
@@ -12,6 +13,7 @@ import chess
 from .batch import FINISHED, load_batch, reconcile
 from .game import Recorder
 from .storage import atomic_write, batch_lock, events, read_json, runtime_identity
+from .validator_reporting import validator_cost_report, validator_metrics
 
 
 def duration_stats(values):
@@ -77,6 +79,13 @@ def build_report(directory):
     counts = Counter(requested=0, responses=0, applied=0, timeouts=0, failed=0, unanswered=0)
     usage = Counter(prompt_tokens=0, output_tokens=0, responses_with_usage=0)
     durations, rows, identities = [], [], []
+    validator_latest, validator_attempts, validator_cache = [], [], {}
+
+    def validator_costs(run_id):
+        if run_id not in validator_cache:
+            validator_cache[run_id] = validator_metrics(output / run_id)
+        return validator_cache[run_id]
+
     for job, entry in zip(plan["games"], progress["games"]):
         summary = entry.get("summary", {})
         status = entry["status"]
@@ -85,6 +94,10 @@ def build_report(directory):
         reasons[reason] += 1
         attempts = entry.get("attempts", [])
         attempt_statuses.update(a["status"] for a in attempts)
+        for attempt in attempts:
+            costs = validator_costs(attempt["run_id"])
+            if costs is not None:
+                validator_attempts.append(costs)
         row = {"index": job["index"], "pair": job["pair"], "llm_color": job["llm_color"], "seed": job["seed"],
                "run_id": entry.get("current_run_id"), "attempt_count": len(attempts),
                "status": status, "reason": reason, "result": summary.get("result", "*"),
@@ -111,6 +124,10 @@ def build_report(directory):
             durations.extend(samples)
             row["llm_turns"] = turn_counts
             row["llm_latency_seconds"] = duration_stats(samples)
+            costs = validator_costs(row["run_id"])
+            if costs is not None:
+                row["validator_costs"] = costs
+                validator_latest.append(costs)
             manifest_path = run_directory / "manifest.json"
             if manifest_path.exists():
                 identity = runtime_identity(read_json(manifest_path))
@@ -127,7 +144,7 @@ def build_report(directory):
         warnings.append("No initialized model identity was available in the selected attempts.")
     if finalized != total:
         warnings.append("This batch has unfinished games; results cover only the saved attempts.")
-    return {"schema_version": 1, "batch_id": plan["batch_id"],
+    report = {"schema_version": 1, "batch_id": plan["batch_id"],
             "generated_at": datetime.now(timezone.utc).isoformat(), "config": plan["config"],
             "runtime_identities": identities, "warnings": warnings,
             "scheduled_games": total, "finalized_games": finalized, "scored_games": scored,
@@ -143,6 +160,9 @@ def build_report(directory):
                             "latency": "recorded LLM response, timeout and failure durations in latest attempts; warm-up excluded; p95 is nearest-rank",
                             "attempts": "older attempts are retained and counted separately; never added to game scores or turn metrics",
                             "tokens": "sum of reported Ollama prompt_eval_count/eval_count, including thinking when reported; missing usage is not estimated"}}
+    if validator_latest or validator_attempts:
+        report["validator_costs"] = validator_cost_report(validator_latest, validator_attempts)
+    return report
 
 
 def markdown(report):
@@ -168,6 +188,38 @@ def markdown(report):
               f"Attempts: {report['attempts']['total']}, including {report['attempts']['superseded']} superseded attempts.", "",
               "## Games", "", "| Game | Color | Seed | Status | Reason | Result | Plies | Attempts |", "|---:|---|---:|---|---|---|---:|---:|"]
     lines += [f"| {g['index']} | {g['llm_color']} | {g['seed']} | {g['status']} | {g['reason']} | {g['result']} | {g['plies'] if g['plies'] is not None else 'n/a'} | {g['attempt_count']} |" for g in report["games"]]
+    costs = report.get("validator_costs")
+    if costs is not None:
+        lines += ["", "## Authored-validator costs", "",
+                  "Artifact setup is recorded once per artifact, separately from evaluation initialization and per-turn execution.", "",
+                  "| Recorded evaluation costs | Latest attempts | All attempts, including superseded |", "|---|---:|---:|"]
+        for field in ("requests", "results", "successes", "errors", "unanswered"):
+            lines.append(f"| Validator {field} | {costs['latest_attempts'][field]} | {costs['all_attempts'][field]} |")
+
+        def measured(row, key="total"):
+            return f"{number(row[key])} ({row['samples']} measured, {row['missing']} unavailable)"
+
+        for label, bucket, field, key in (
+                ("Initialization wall seconds", "initialization", "elapsed_seconds", "total"),
+                ("Model-call wall seconds", "model_inference", "elapsed_seconds", "total"),
+                ("Model prompt tokens", "model_inference", "prompt_tokens", "total"),
+                ("Model output tokens", "model_inference", "output_tokens", "total"),
+                ("Validator total wall seconds", "execution", "total_wall_seconds", "total"),
+                ("Validator execution wall seconds", "execution", "execution_wall_seconds", "total"),
+                ("Validator CPU seconds", "execution", "cpu_seconds", "total"),
+                ("Validator cleanup seconds", "execution", "cleanup_seconds", "total"),
+                ("Validator peak memory bytes", "execution", "peak_memory_bytes", "max")):
+            left = measured(costs["latest_attempts"][bucket][field], key)
+            right = measured(costs["all_attempts"][bucket][field], key)
+            lines.append(f"| {label} | {left} | {right} |")
+        for artifact in costs["artifacts"]:
+            lines += ["", f"### Artifact {artifact['artifact_id']}", "",
+                      f"Source SHA-256: {artifact['source_sha256'] or 'unavailable'}", "",
+                      "Generation, development, and freeze setup ledger (counted once):", "",
+                      "```json", json.dumps(artifact["setup_costs"], indent=2, ensure_ascii=False), "```"]
+        lines += ["", *[f"- {definition}" for definition in costs["definitions"].values()]]
+        for warning in costs["all_attempts"]["warnings"]:
+            lines.append(f"- {warning}")
     lines += ["", "## Metric definitions", ""] + [f"- {text}." for text in report["definitions"].values()]
     if report["warnings"]:
         lines += ["", "## Warnings", ""] + [f"- {text}" for text in report["warnings"]]

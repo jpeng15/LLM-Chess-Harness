@@ -66,8 +66,12 @@ def compare(left, right):
         warnings.append("Stockfish skill-mode randomness is not controlled by the LLM seed; trajectories can differ.")
     if differences:
         warnings.append("Settings differ; review the full differences before attributing changes to one factor.")
-    if identities[0] != identities[1]:
+    environments = [[{key: value for key, value in identity.items() if key != "validator_artifact_id"}
+                     if isinstance(identity, dict) else identity for identity in group] for group in identities]
+    if environments[0] != environments[1]:
         warnings.append("Runtime/model identities differ; inspect the saved identities.")
+    elif identities[0] != identities[1]:
+        warnings.append("Authored-validator artifact identities differ; other recorded runtime/model identities match.")
     return {"schema_version": 1, "kind": left["kind"], "left": labels[0], "right": labels[1],
             "metrics": {k: {"left": left[k], "right": right[k]} for k in metrics},
             "latency_seconds": {"left": latency[0], "right": latency[1]},

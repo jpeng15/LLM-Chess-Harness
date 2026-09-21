@@ -124,3 +124,31 @@ class BenchmarkTests(unittest.TestCase):
         self.assertEqual(report["tested"], 1)
         self.assertIsNone(report["cases"][0]["elapsed_seconds"])
         self.assertEqual(run.call_count, 1)
+
+    def test_authored_identity_is_distinguished_from_model_drift(self):
+        with patch("chess_harness.benchmark.run_match", side_effect=self.fake_match), redirect_stdout(io.StringIO()):
+            baseline = run_benchmark(self.config, self.root, load_suite())
+        authored = deepcopy(baseline)
+        for row in authored["cases"]:
+            row["runtime_identity"]["validator_artifact_id"] = "a" * 64
+        warnings = compare(baseline, authored)["warnings"]
+        self.assertTrue(any("artifact identities differ" in warning for warning in warnings))
+        self.assertFalse(any("Runtime/model identities differ" in warning for warning in warnings))
+        authored["cases"][0]["runtime_identity"]["model_digest"] = "changed"
+        self.assertTrue(any("Runtime/model identities differ" in warning for warning in compare(baseline, authored)["warnings"]))
+
+    def test_position_validator_costs_include_failed_calls_and_deduplicate_setup(self):
+        from chess_harness.validator_reporting import validator_metrics_from_records
+        costs = validator_metrics_from_records({"validator_artifact": {
+            "artifact_id": "a" * 64, "source_sha256": "b" * 64, "setup_costs": {"tokens": 100}}}, [
+                {"type": "validator_requested", "call": 1},
+                {"type": "validator_result", "call": 1,
+                 "execution": {"status": "error", "reason": "timeout", "cpu_seconds": 0.2}}])
+        with patch("chess_harness.benchmark.run_match", side_effect=self.fake_match), \
+                patch("chess_harness.benchmark.validator_metrics", return_value=costs), redirect_stdout(io.StringIO()):
+            report = run_benchmark(self.config, self.root, load_suite())
+        ledger = report["validator_costs"]
+        self.assertEqual(len(ledger["artifacts"]), 1)
+        self.assertEqual(ledger["all_attempts"]["errors"], report["tested"])
+        self.assertAlmostEqual(ledger["all_attempts"]["execution"]["cpu_seconds"]["total"], report["tested"] * 0.2)
+        self.assertEqual(ledger["all_attempts"]["execution"]["worker_wall_seconds"]["missing"], report["tested"])

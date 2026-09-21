@@ -1,6 +1,11 @@
 const $ = id => document.getElementById(id);
 let data=null, index=0, follow=true, flipped=false, playing=false, selection='latest', lastKey='', boardKey='';
 function text(id, value){$(id).textContent=value;}
+function inspector(parent, label, value){
+  const details=document.createElement('details'),title=document.createElement('summary'),body=document.createElement('pre');
+  title.textContent=label;body.textContent=typeof value==='string'?value:JSON.stringify(value??null,null,2);
+  details.append(title,body);parent.append(details);return details;
+}
 function stopReplay(){playing=false;text('play','Play replay');}
 function seek(value){if(!data)return;follow=false;stopReplay();index=Math.max(0,Math.min(value,data.positions.length-1));renderPosition();}
 function renderPosition(){
@@ -27,7 +32,7 @@ function renderPosition(){
 function renderData(){
   if(!data)return;
   const summary=data.summary;
-  text('mode',({'legal-moves':'Legal-move assisted','constrained-legal':'Schema-constrained legal','rules-tools':'Rules-tool assisted','unassisted':'Unassisted'})[data.config.mode]||data.config.mode||'Mode unavailable');
+  text('mode',({'legal-moves':'Legal-move assisted','constrained-legal':'Schema-constrained legal','rules-tools':'Rules-tool assisted','authored-validator':'LLM-authored validator','unassisted':'Unassisted'})[data.config.mode]||data.config.mode||'Mode unavailable');
   text('status',summary?summary.status.replaceAll('_',' '):(data.pending?'Thinking':data.sequence===0?'Preparing game':'Game in progress'));
   text('result',summary?.result||'');
   text('detail',summary?(summary.error||summary.reason.replaceAll('_',' ')):(data.pending?`${data.pending.player} is choosing a move.`:'Waiting for the next event.'));
@@ -40,14 +45,52 @@ function renderData(){
     button.onclick=()=>seek(i+1);$('moves').append(button);
   });
   $('responses').replaceChildren();text('response-count',String(data.responses.length));
+  if(data.validator_artifact){
+    const artifact=data.validator_artifact;
+    const details=document.createElement('details'),title=document.createElement('summary'),identity=document.createElement('pre');
+    title.textContent='Frozen authored-validator artifact';
+    identity.textContent=`Artifact: ${artifact.artifact_id}\nSource SHA-256: ${artifact.source_sha256||'unavailable'}`;
+    details.append(title,identity);
+    inspector(details,'Validator source (recorded text)',artifact.source_text??'Source unavailable');
+    inspector(details,'Generation, development, and freeze costs (once per artifact)',artifact.setup_costs??artifact.manifest?.setup_costs);
+    inspector(details,'Frozen manifest and development provenance',artifact.manifest);
+    if(artifact.development)inspector(details,'Development record',artifact.development);
+    $('responses').append(details);
+  }
+  if(data.validator_costs){
+    const costs=data.validator_costs;
+    const details=inspector($('responses'),'Evaluation costs for this attempt',{
+      requests:costs.requests,results:costs.results,successes:costs.successes,errors:costs.errors,
+      unanswered:costs.unanswered,failure_reasons:costs.failure_reasons,
+      initialization:costs.initialization,execution:costs.execution,model_inference:costs.model_inference,
+      choice_observations:costs.choice_observations,warnings:costs.warnings
+    });
+    const note=document.createElement('p');note.className='sub';
+    note.textContent='Initialization is charged per run, outside turn latency. Validator and model timings are portions of turn latency and overlap; do not add them together. Missing measurements are unavailable. Different final choices do not establish that validation caused the change.';
+    details.append(note);
+  }
   if(data.tool_activity?.length){
     const details=document.createElement('details'),title=document.createElement('summary');
-    title.textContent='Rules-tool exploration (hypothetical positions)';details.append(title);
+    title.textContent=data.config.mode==='authored-validator'?'Authored validation and rules exploration (hypothetical positions)':'Rules-tool exploration (hypothetical positions)';details.append(title);
     for(const event of data.tool_activity){
       const entry=document.createElement('details'),label=document.createElement('summary'),body=document.createElement('pre');
-      label.textContent=`Ply ${event.ply} · call ${event.call} · ${event.type.replaceAll('_',' ')}`;
-      body.textContent=JSON.stringify(event.result||event.raw||event.request,null,2);
-      entry.append(label,body);details.append(entry);
+      label.textContent=event.type==='validator_preflight'?'Validator initialization':`Ply ${event.ply} · call ${event.call} · ${event.type.replaceAll('_',' ')}${event.candidate?' · '+event.candidate:''}`;
+      entry.append(label);
+      if(event.type==='validator_result'){
+        const execution=event.execution||{};
+        body.textContent=`Status: ${execution.status||'unavailable'} · Reason: ${execution.reason||'unavailable'}`;
+        entry.append(body);
+        if(execution.findings){
+          inspector(entry,execution.status==='ok'?'Verified factual findings':'Reported findings (not accepted)',execution.findings.facts);
+          inspector(entry,'Heuristic interpretations (not verified)',execution.findings.heuristics);
+        }
+        inspector(entry,'Execution measurements and diagnostics',execution);
+        inspector(entry,'Position, history, and candidate input',event.input);
+      }else{
+        body.textContent=JSON.stringify(event.result||event.raw||event.request||event.input||event.report||null,null,2);
+        entry.append(body);
+      }
+      details.append(entry);
     }
     $('responses').append(details);
   }

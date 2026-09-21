@@ -67,6 +67,30 @@ class ViewerTests(unittest.TestCase):
         self.event("initialization_failed", status="infrastructure_failure", error="server unavailable")
         self.assertEqual(snapshot(self.recorder.directory)["summary"]["error"], "server unavailable")
 
+    def test_authored_validator_findings_and_source_never_become_board_moves(self):
+        source = '<script>throw new Error("source must remain text")</script>'
+        artifact = {"artifact_id": "frozen-a", "source_sha256": "a" * 64, "source_text": source,
+                    "setup_costs": {"generation": {"output_tokens": 100}}, "manifest": {"development": "dev-a"}}
+        self.recorder.write("manifest.json", {"config": {"initial_fen": chess.STARTING_FEN,
+            "llm": {"model": "test"}, "llm_color": "white", "mode": "authored-validator"},
+            "validator_artifact": artifact})
+        self.event("validator_preflight", report={"status": "ok"}, elapsed_seconds=1)
+        self.event("move_requested", player="test", ply=1, fen=chess.STARTING_FEN)
+        self.event("validator_requested", call=1, artifact_id="frozen-a", candidate="e2e4", input={"candidate": "e2e4"})
+        self.event("validator_result", call=1, artifact_id="frozen-a", candidate="e2e4", input={"candidate": "e2e4"},
+                   execution={"status": "ok", "reason": "completed", "cpu_seconds": 0.1,
+                              "findings": {"facts": [{"line": ["e2e4", "d7d5"]}],
+                                           "heuristics": [{"interpretation": source}]}})
+        value = snapshot(self.recorder.directory)
+        self.assertEqual(value["positions"], [{"fen": chess.STARTING_FEN, "san": "Start", "uci": None}])
+        self.assertEqual(value["validator_artifact"], artifact)
+        self.assertEqual([row["type"] for row in value["tool_activity"]],
+                         ["validator_preflight", "validator_requested", "validator_result"])
+        self.assertEqual(value["tool_activity"][-1]["ply"], 1)
+        self.assertEqual(value["tool_activity"][-1]["player"], "test")
+        self.assertEqual(value["validator_costs"]["execution"]["cpu_seconds"]["total"], 0.1)
+        self.assertEqual(value["pending"]["ply"], 1)
+
     def test_path_traversal_rejected(self):
         for name in ("../test-run", "..", "C:\\secrets", "test-run/other"):
             with self.subTest(name=name), self.assertRaises(ValueError):

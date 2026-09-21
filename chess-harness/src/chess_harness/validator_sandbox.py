@@ -4,6 +4,7 @@ The pinned launcher measures its isolated child; the host owns deadlines,
 container lifecycle, runtime checks and independent verification of findings.
 """
 from dataclasses import dataclass
+from copy import deepcopy
 import hashlib
 import json
 import math
@@ -60,6 +61,15 @@ class CommandResult:
     reason: str | None = None
 
 
+def policy_limits():
+    """The complete fixed resource policy recorded in frozen artifacts."""
+    return {"cpu_seconds": 1, "cpu_quota": 1, "memory_bytes": MEMORY_BYTES,
+            "swap_bytes": 0, "wall_seconds": WALL_SECONDS, "source_bytes": MAX_SOURCE_BYTES,
+            "input_bytes": 128 * 1024, "stdout_bytes": 64 * 1024, "stderr_bytes": 16 * 1024,
+            "pids": 2, "scratch_bytes": 1024 * 1024, "control_seconds": CONTROL_SECONDS,
+            "cleanup_seconds_per_attempt": CLEANUP_SECONDS, "cleanup_attempts": 2}
+
+
 def runtime_source_hash():
     """Hash the exact trusted runtime inputs, normalizing checkout line endings."""
     digest = hashlib.sha256()
@@ -83,7 +93,7 @@ def _json(raw):
 
 
 def _bounded_process(args, *, data=None, seconds=CONTROL_SECONDS,
-                     stdout_limit=LAUNCHER_BYTES, stderr_limit=16 * 1024):
+                     stdout_limit=LAUNCHER_BYTES, stderr_limit=16 * 1024, cancel_event=None):
     """Drain both pipes with caps while a native Docker CLI runs, without a shell."""
     deadline = time.monotonic() + max(0, seconds)
     env = dict(os.environ)
@@ -133,6 +143,9 @@ def _bounded_process(args, *, data=None, seconds=CONTROL_SECONDS,
     reason = None
     try:
         while process.poll() is None:
+            if cancel_event is not None and cancel_event.is_set():
+                reason = "cancelled"
+                break
             if overflow.is_set():
                 reason = overflow_reason[0]
                 break
@@ -161,6 +174,9 @@ class DockerSandbox:
         self.config = config
         self._docker_path = None
         self._unclean_container = None
+        self._prepared = None
+        self._control = threading.local()
+        self._execution_lock = threading.Lock()
 
     def _enabled(self):
         if self.config.enabled is not True:
@@ -172,8 +188,18 @@ class DockerSandbox:
         if self.config.docker_context != "desktop-linux":
             raise SandboxFailure("unsupported_runtime", "Only the verified local Docker Desktop Linux VM context is supported")
 
-    def _call(self, args, **kwargs):
+    def _call(self, args, *, ignore_cancel=False, **kwargs):
         self._enabled()
+        if not ignore_cancel:
+            cancel = getattr(self._control, "cancel_event", None)
+            deadline = getattr(self._control, "deadline", None)
+            if cancel is not None and cancel.is_set():
+                return CommandResult(None, reason="cancelled")
+            if deadline is not None:
+                kwargs["seconds"] = min(kwargs.get("seconds", CONTROL_SECONDS), deadline - time.monotonic())
+                if kwargs["seconds"] <= 0:
+                    return CommandResult(None, reason="timeout")
+            kwargs["cancel_event"] = cancel
         if self._docker_path is None:
             self._docker_path = shutil.which("docker")
         if not self._docker_path:
@@ -183,7 +209,7 @@ class DockerSandbox:
     def _read_json(self, args, seconds=CONTROL_SECONDS):
         response = self._call(args, seconds=seconds)
         if response.reason or response.exit_code != 0:
-            raise SandboxFailure("runtime_unavailable", "Docker inspection failed or exceeded its control budget")
+            raise SandboxFailure(response.reason or "runtime_unavailable", "Docker inspection failed or exceeded its control budget")
         try:
             return _json(response.stdout)
         except (ValueError, RecursionError):
@@ -265,12 +291,12 @@ class DockerSandbox:
 
     def _cleanup(self, name):
         try:
-            removed = self._call(["rm", "--force", name], seconds=CLEANUP_SECONDS)
+            removed = self._call(["rm", "--force", name], seconds=CLEANUP_SECONDS, ignore_cancel=True)
             if removed.exit_code == 0 and not removed.reason:
                 return True
             # A failed create may never have allocated a container. Prove absence.
             absent = self._call(["container", "ls", "--all", "--filter", f"name=^/{name}$", "--format", "{{.ID}}"],
-                                seconds=CLEANUP_SECONDS)
+                                seconds=CLEANUP_SECONDS, ignore_cancel=True)
             return absent.exit_code == 0 and not absent.reason and not absent.stdout.strip()
         except (SandboxFailure, OSError, subprocess.SubprocessError):
             return False
@@ -284,6 +310,12 @@ class DockerSandbox:
                   "cpu_seconds": None, "peak_memory_bytes": None, "worker_wall_seconds": None}
         def remaining():
             seconds = WALL_SECONDS - (time.monotonic() - started)
+            deadline = getattr(self._control, "deadline", None)
+            cancel = getattr(self._control, "cancel_event", None)
+            if cancel is not None and cancel.is_set():
+                raise SandboxFailure("cancelled", "Invocation cancelled; cleanup is still required")
+            if deadline is not None:
+                seconds = min(seconds, deadline - time.monotonic())
             if seconds <= 0:
                 raise SandboxFailure("timeout", "Whole invocation deadline exceeded")
             return seconds
@@ -423,6 +455,75 @@ class DockerSandbox:
     @staticmethod
     def _public_probe(case, execution):
         return {"case": case, **{key: value for key, value in execution.items() if key != "stdout"}}
+
+    def prepare(self):
+        """Run acceptance once for this in-memory session; never trust a saved receipt."""
+        self._prepared = None
+        report = self.preflight()
+        if report["status"] == "ok":
+            self._prepared = deepcopy(report)
+        return report
+
+    def run_prepared(self, source, request, *, deadline=None, cancel_event=None):
+        """Execute with fresh runtime/config checks and cooperative cancellation.
+
+        Game initialization performs expensive acceptance. Every call still checks
+        daemon/image identity and effective container isolation. Infrastructure
+        failures poison the session. Development may inspect ordinary code errors;
+        the game player still stops on every error without retrying.
+        """
+        started = time.monotonic()
+        locked = self._execution_lock.acquire(blocking=False)
+        if not locked:
+            return {"status": "error", "reason": "sandbox_busy", "message": "Concurrent invocations are unsupported"}
+        self._control.deadline, self._control.cancel_event = deadline, cancel_event
+        report = {}
+        try:
+            self._enabled()
+            if self._prepared is None:
+                raise SandboxFailure("preflight_required", "Prepare this sandbox before executing source")
+            if type(source) is not bytes or not source or len(source) > MAX_SOURCE_BYTES:
+                raise SandboxFailure("source_limit", "Source must be nonempty UTF-8 bytes within 64 KiB")
+            try:
+                source_text = source.decode("utf-8", errors="strict")
+            except UnicodeDecodeError:
+                raise SandboxFailure("invalid_source", "Source is not UTF-8") from None
+            request = validate_request(request)
+            RulesBoard.from_request(request)
+            report.update(source_sha256=hashlib.sha256(source).hexdigest(),
+                          input_sha256=hashlib.sha256(json.dumps(request, sort_keys=True, separators=(",", ":")).encode()).hexdigest())
+            if cancel_event is not None and cancel_event.is_set():
+                raise SandboxFailure("cancelled", "Invocation cancelled before startup")
+            if deadline is not None and time.monotonic() >= deadline:
+                raise SandboxFailure("timeout", "Turn deadline expired before startup")
+            check_start = time.monotonic()
+            if self._runtime() != self._prepared["runtime"]:
+                raise SandboxFailure("environment_mismatch", "Prepared sandbox runtime changed")
+            report["runtime_check_seconds"] = time.monotonic() - check_start
+            report.update(self._execute(_payload(source_text, request)))
+            raw = report.pop("stdout", None)
+            if report["status"] == "ok":
+                report["findings"] = verify_result_bytes(request, raw)
+                if cancel_event is not None and cancel_event.is_set():
+                    raise SandboxFailure("cancelled", "Invocation cancelled before findings were accepted")
+                if deadline is not None and time.monotonic() >= deadline:
+                    raise SandboxFailure("timeout", "Turn deadline expired before findings were accepted")
+        except (SandboxFailure, ValidatorContractError) as exc:
+            report.update(status="error", reason=exc.reason, message=str(exc))
+            if hasattr(exc, "path"):
+                report["path"] = exc.path
+            report.pop("findings", None)
+        except KeyboardInterrupt:
+            report.update(status="error", reason="cancelled", message="Invocation cancelled")
+        finally:
+            if report.get("reason") in {"runtime_unavailable", "unsupported_runtime", "isolation_failed",
+                                        "environment_mismatch", "runtime_protocol_error", "cleanup_failed",
+                                        "cleanup_required", "cancelled"}:
+                self._prepared = None
+            report["total_wall_seconds"] = time.monotonic() - started
+            self._control.deadline = self._control.cancel_event = None
+            self._execution_lock.release()
+        return report
 
     def run(self, source, request):
         """Requires explicit opt-in and a fresh successful preflight; never falls back."""

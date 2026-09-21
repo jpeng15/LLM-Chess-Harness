@@ -151,6 +151,17 @@ existing reports, source files, and requests are never overwritten. Without it,
 the report goes to stdout. Disabled/malformed CLI options exit 2, explicit
 runtime or verification failures exit 1, and successful checks exit 0.
 
+Development and game integrations can instead call `DockerSandbox.prepare()`
+once for an in-memory session, followed by `run_prepared(source, request)`.
+Preparation still runs the complete real acceptance suite. Every invocation
+rechecks the daemon/image identity and effective container configuration; a
+saved report cannot create a prepared session. Runtime changes invalidate the
+session. This avoids charging repeated stress tests as per-turn validator work.
+Callers can supply an absolute turn deadline and a cancellation event. Cancelled
+work kills the Docker client and removes the daemon-owned container before the
+invocation returns; cleanup uses its own bounded budget. Findings arriving after
+the turn deadline or cancellation are rejected.
+
 ## Preflight and result evidence
 
 Preflight checks the effective runtime, then exercises file/socket/process/exec

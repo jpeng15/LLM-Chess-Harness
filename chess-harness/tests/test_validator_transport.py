@@ -7,6 +7,7 @@ has passed. They check the host subprocess transport independently.
 import os
 import subprocess
 import sys
+import threading
 import time
 import unittest
 from unittest.mock import patch
@@ -19,6 +20,21 @@ def python_command(program):
 
 
 class ValidatorTransportTests(unittest.TestCase):
+    def test_cancellation_reaps_native_client_before_return(self):
+        cancel = threading.Event()
+        timer = threading.Timer(0.1, cancel.set)
+        timer.start()
+        try:
+            started = time.monotonic()
+            result = _bounded_process(python_command("import time; time.sleep(5)"),
+                                      seconds=3, cancel_event=cancel)
+            self.assertEqual(result.reason, "cancelled")
+            self.assertIsNotNone(result.exit_code)
+            self.assertLess(time.monotonic() - started, 2)
+        finally:
+            timer.cancel()
+            timer.join()
+
     def test_both_output_pipes_drain_while_input_is_waiting(self):
         # Both output bursts exceed ordinary pipe capacity, and the child reads
         # stdin only afterwards. A serial write-then-read transport deadlocks.

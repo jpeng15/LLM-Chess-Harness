@@ -40,14 +40,25 @@ def add_game_arguments(parser, *, include_color=True):
                         help="rules-tools simulations per turn (default: 4)")
     parser.add_argument("--tool-depth", type=int, choices=range(1, 9),
                         help="rules-tools maximum branch depth in plies (default: 4)")
+    parser.add_argument("--enable-authored-validators", action="store_true",
+                        help="explicitly enable frozen authored validators (requires authored-validator mode)")
+    parser.add_argument("--validator-artifact", type=Path, help="verified frozen artifact directory")
     parser.add_argument("--fen", default=chess.STARTING_FEN)
     parser.add_argument("--output", type=Path, default=ROOT / "runs")
 
 
 def game_config(parser, args):
-    if args.mode != "rules-tools" and (args.tool_calls is not None or args.tool_depth is not None):
-        parser.error("--tool-calls and --tool-depth require --mode rules-tools")
-    context = args.context if args.context is not None else (16384 if args.mode == "rules-tools" else 8192)
+    tool_mode = args.mode in ("rules-tools", "authored-validator")
+    if not tool_mode and (args.tool_calls is not None or args.tool_depth is not None):
+        parser.error("--tool-calls and --tool-depth require a tool mode")
+    enabled = getattr(args, "enable_authored_validators", False)
+    artifact_path = getattr(args, "validator_artifact", None)
+    if args.mode == "authored-validator":
+        if not enabled or artifact_path is None:
+            parser.error("authored-validator requires --enable-authored-validators and --validator-artifact")
+    elif enabled or artifact_path is not None:
+        parser.error("Validator flags require --mode authored-validator")
+    context = args.context if args.context is not None else (16384 if tool_mode else 8192)
     if args.tokens >= context:
         parser.error("--tokens must be smaller than --context, leaving room for the input prompt")
     try:
@@ -71,7 +82,15 @@ def game_config(parser, args):
         "llm_color": getattr(args, "llm_color", "white"), "initial_fen": args.fen, "max_plies": args.max_plies,
         "draw_policy": "automatically claim available draws", "retries": 0,
     }
-    if args.mode == "rules-tools":
-        config["tools"] = {"version": "rules-tools-v1", "calls": args.tool_calls or 4,
+    if tool_mode:
+        config["tools"] = {"version": "authored-tools-v1" if args.mode == "authored-validator" else "rules-tools-v1", "calls": args.tool_calls or 4,
                            "depth": args.tool_depth or 4, "minimum_calls": 1, "output_budget": "per-turn"}
+    if args.mode == "authored-validator":
+        from .validator_artifacts import ArtifactError, load_artifact
+        try:
+            artifact = load_artifact(artifact_path)
+        except (ArtifactError, OSError, ValueError) as exc:
+            parser.error(str(exc))
+        config["validator"] = {"enabled": True, "artifact": str(artifact_path.resolve()),
+                               "artifact_id": artifact.artifact_id}
     return config

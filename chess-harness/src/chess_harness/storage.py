@@ -93,7 +93,10 @@ def runtime_identity(manifest):
     loaded = manifest.get("loaded_model", {})
     if not loaded.get("digest"):
         return None
-    return {"engine_sha256": manifest["engine_sha256"],
+    identity = {"engine_sha256": manifest["engine_sha256"],
             "model_digest": loaded["digest"],
             "ollama_version": manifest["ollama_version"]["version"],
             "packages": manifest["packages"], "python": manifest["python"]}
+    if "validator_artifact" in manifest:
+        identity["validator_artifact_id"] = manifest["validator_artifact"]["artifact_id"]
+    return identity

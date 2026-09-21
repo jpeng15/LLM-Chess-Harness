@@ -33,6 +33,7 @@ class Recorder:
         game = chess.pgn.Game.from_board(board)
         event = {"legal-moves": "Legal-move-assisted LLM vs engine",
                  "rules-tools": "Rules-tool-assisted LLM vs engine",
+                 "authored-validator": "Frozen authored-validator LLM vs engine",
                  "constrained-legal": "Schema-constrained legal LLM vs engine",
                  "unassisted": "Unassisted LLM vs engine"}[self.mode]
         game.headers.update({"Event": event, "White": players[chess.WHITE].name,

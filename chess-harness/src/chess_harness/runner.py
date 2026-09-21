@@ -4,6 +4,7 @@ import hashlib
 from importlib.metadata import version
 from pathlib import Path
 import platform
+import time
 import uuid
 
 import chess
@@ -31,6 +32,24 @@ def run_match(config, directory, *, batch=None, expected_identity=None):
     print(f"Run: {recorder.directory}", flush=True)
     engine = None
     try:
+        artifact = backend = None
+        if config["mode"] == "authored-validator" or config.get("validator"):
+            from .validator_player import configured_artifact
+            from .validator_sandbox import DockerSandbox, SandboxConfig
+            artifact = configured_artifact(config)
+            frozen = artifact.manifest
+            manifest["validator_artifact"] = {"artifact_id": artifact.artifact_id,
+                "source_sha256": frozen["source_sha256"], "source_text": artifact.source.decode("utf-8"),
+                "manifest": frozen, "setup_costs": frozen["setup_costs"], "development": artifact.development}
+            recorder.write("manifest.json", manifest)
+            backend = DockerSandbox(SandboxConfig(enabled=True, image=frozen["image"],
+                                                  docker_context=frozen["docker_context"]))
+            begin = time.monotonic()
+            receipt = backend.prepare()
+            recorder.event("validator_preflight", report=receipt, elapsed_seconds=time.monotonic() - begin)
+            if receipt.get("status") != "ok":
+                raise PlayerFailure("validator_" + receipt.get("reason", "preflight_failed"),
+                                    receipt.get("message", "Validator sandbox acceptance failed"), raw=receipt)
         manifest["packages"] = {name: version(name) for name in ("chess", "httpx", "llm-chess-harness")}
         manifest["engine_sha256"] = hashlib.sha256(Path(config["engine"]["path"]).read_bytes()).hexdigest()
         recorder.write("manifest.json", manifest)
@@ -44,7 +63,11 @@ def run_match(config, directory, *, batch=None, expected_identity=None):
         engine = EnginePlayer(config["engine"])
         manifest["engine_id"] = engine.engine.id
         recorder.write("manifest.json", manifest)
-        if config["mode"] == "rules-tools":
+        if config["mode"] == "authored-validator":
+            from .validator_player import AuthoredValidatorPlayer
+            llm = AuthoredValidatorPlayer({**config["llm"], "mode": config["mode"],
+                "tools": config["tools"], "validator": config["validator"]}, artifact, backend, emit=recorder.event)
+        elif config["mode"] == "rules-tools":
             llm = RulesToolPlayer({**config["llm"], "mode": config["mode"], "tools": config["tools"]},
                                   emit=recorder.event)
         else:

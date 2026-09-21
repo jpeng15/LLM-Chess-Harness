@@ -12,7 +12,8 @@ from .limits import PlayerFailure, context_error, cutoff_reason
 
 PROMPT_VERSION = "unassisted-v2"
 PROMPT_VERSIONS = {"unassisted": PROMPT_VERSION, "legal-moves": "legal-moves-v2",
-                   "constrained-legal": "constrained-legal-v1", "rules-tools": "rules-tools-v2"}
+                   "constrained-legal": "constrained-legal-v1", "rules-tools": "rules-tools-v2",
+                   "authored-validator": "authored-validator-v1"}
 
 
 def prompt_version(mode):

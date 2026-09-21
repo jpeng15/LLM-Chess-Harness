@@ -186,7 +186,9 @@ class ValidatorCliTests(unittest.TestCase):
                     self.assertEqual(config["mode"], mode)
                     self.assertEqual("tools" in config, mode == "rules-tools")
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
-            parser.parse_args(["--mode", "authored-validator"])
+            game_config(parser, parser.parse_args(["--mode", "authored-validator"]))
+        with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
+            game_config(parser, parser.parse_args(["--enable-authored-validators"]))
         with redirect_stderr(io.StringIO()), self.assertRaises(SystemExit):
             game_config(parser, parser.parse_args(["--tool-calls", "1"]))
 

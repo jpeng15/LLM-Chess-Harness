@@ -163,6 +163,9 @@ def execute(plan, progress, recorder, output):
     print(f"Batch: {recorder.directory} ({len(games)} games)", flush=True)
     active = None
     try:
+        if config.get("mode") == "authored-validator" or config.get("validator"):
+            from .validator_player import configured_artifact
+            configured_artifact(config)
         for game, entry in zip(games, progress["games"]):
             if entry["status"] in FINISHED:
                 continue
@@ -199,7 +202,7 @@ def execute(plan, progress, recorder, output):
             progress.update(status="completed", reason="schedule_exhausted")
     except (Exception, KeyboardInterrupt) as exc:
         status = "interrupted" if isinstance(exc, KeyboardInterrupt) else "infrastructure_failure"
-        reason = "user_interrupt" if status == "interrupted" else "batch_runner_failure"
+        reason = "user_interrupt" if status == "interrupted" else getattr(exc, "reason", "batch_runner_failure")
         progress.update(status="interrupted" if status == "interrupted" else "failed",
                         reason=reason, error=str(exc))
         if active is not None:

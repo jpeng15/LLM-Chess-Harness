@@ -26,20 +26,20 @@ def add_game_arguments(parser, *, include_color=True):
     if include_color:
         parser.add_argument("--llm-color", choices=["white", "black"], default="white")
     parser.add_argument("--think", action=argparse.BooleanOptionalAction, default=True,
-                        help="enable model thinking (default: enabled; disable with --no-think)")
+                        help="enable model thinking (default: %(default)s; disable with --no-think)")
     parser.add_argument("--move-seconds", type=positive, default=180)
     parser.add_argument("--tokens", type=positive, default=4096)
     parser.add_argument("--context", type=positive,
-                        help="context tokens (default: 16384 for rules-tools, 8192 otherwise)")
+                        help="context tokens (game defaults: 16384 for tool modes, 8192 otherwise)")
     parser.add_argument("--temperature", type=float, default=0)
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--engine-nodes", type=positive, default=10000)
     parser.add_argument("--engine-skill", type=int, choices=range(21), default=0)
     parser.add_argument("--max-plies", type=positive, default=300)
     parser.add_argument("--tool-calls", type=int, choices=range(1, 17),
-                        help="rules-tools simulations per turn (default: 4)")
+                        help="total tool actions per turn in tool modes (default: 4)")
     parser.add_argument("--tool-depth", type=int, choices=range(1, 9),
-                        help="rules-tools maximum branch depth in plies (default: 4)")
+                        help="maximum simulation branch depth in tool modes (default: 4)")
     parser.add_argument("--enable-authored-validators", action="store_true",
                         help="explicitly enable frozen authored validators (requires authored-validator mode)")
     parser.add_argument("--validator-artifact", type=Path, help="verified frozen artifact directory")

@@ -395,6 +395,75 @@ class AuthoredIntegrationTests(unittest.TestCase):
         self.assertEqual(manifest["validator_artifact"]["source_text"], ARTIFACT.source.decode())
         self.assertTrue(any(row["type"] == "validator_preflight" for row in events(self.root / "run")))
 
+    def test_runner_initializes_authored_player_and_plays_one_verified_turn_with_complete_records(self):
+        config = self.config()
+        config["max_plies"] = 1
+        development = {"schema_version": 1, "status": "passed", "selected_attempt": 1,
+                       "attempts": [{"index": 1, "status": "passed"}]}
+        artifact = FrozenValidator(ARTIFACT.artifact_id, ARTIFACT.source, ARTIFACT.manifest, development)
+        backend = FakeBackend()
+        backend.prepare = Mock(return_value={"status": "ok", "reason": "ready", "checks": []})
+        version_response = Mock()
+        version_response.json.return_value = {"version": "0.34.1"}
+        tags_response = Mock()
+        tags_response.json.return_value = {"models": [{"name": config["llm"]["model"], "digest": "b" * 64}]}
+        loaded = {"name": config["llm"]["model"], "digest": "b" * 64, "context_length": config["llm"]["context"]}
+        with patch("chess_harness.validator_player.load_artifact", return_value=artifact) as load, \
+                patch("chess_harness.validator_sandbox.DockerSandbox", return_value=backend) as sandbox, \
+                patch("chess_harness.runner.httpx.Client") as http, \
+                patch("chess_harness.runner.EnginePlayer") as engine, \
+                patch.object(AuthoredValidatorPlayer, "warmup", return_value={"done": True}) as warmup, \
+                patch.object(AuthoredValidatorPlayer, "verify_loaded_context", return_value=loaded) as context, \
+                patch.object(AuthoredValidatorPlayer, "_post", new_callable=AsyncMock,
+                             side_effect=[response(validate()), response(play("d2d4"))]) as post, \
+                redirect_stdout(io.StringIO()):
+            http.return_value.__enter__.return_value.get.side_effect = [version_response, tags_response]
+            engine.return_value.name = "Fake opponent"
+            engine.return_value.engine.id = {"name": "Fake opponent", "author": "test"}
+            summary = run_match(config, self.root / "success")
+        self.assertEqual((summary["status"], summary["reason"], summary["plies"]), ("truncated", "max_plies", 1))
+        expected_board = chess.Board()
+        expected_board.push_uci("d2d4")
+        self.assertEqual(summary["final_fen"], expected_board.fen())
+        self.assertEqual(post.await_count, 2)
+        warmup.assert_called_once_with()
+        context.assert_called_once_with()
+        self.assertEqual(load.call_count, 2)  # Initialization and the actual candidate check.
+        backend.prepare.assert_called_once_with()
+        self.assertEqual(len(backend.calls), 1)
+        self.assertEqual(backend.calls[0]["source"], artifact.source)
+        settings = sandbox.call_args.args[0]
+        self.assertTrue(settings.enabled)
+        self.assertEqual(settings.image, artifact.manifest["image"])
+        self.assertEqual(settings.docker_context, artifact.manifest["docker_context"])
+        engine.assert_called_once_with(config["engine"])
+        engine.return_value.close.assert_called_once_with()
+        engine.return_value.choose.assert_not_called()
+        engine.return_value.engine.play.assert_not_called()
+        engine.return_value.engine.analyse.assert_not_called()
+        manifest = json.loads((self.root / "success" / "manifest.json").read_text())
+        self.assertEqual(manifest["config"]["mode"], "authored-validator")
+        self.assertEqual(manifest["validator_artifact"]["development"], development)
+        self.assertEqual(manifest["validator_artifact"]["source_text"], artifact.source.decode())
+        self.assertEqual(manifest["validator_artifact"]["manifest"], artifact.manifest)
+        self.assertEqual(manifest["validator_artifact"]["setup_costs"], artifact.manifest["setup_costs"])
+        identity = runtime_identity(manifest)
+        self.assertEqual(identity["validator_artifact_id"], artifact.artifact_id)
+        self.assertEqual(identity["model_digest"], loaded["digest"])
+        rows = events(self.root / "success")
+        requested = next(row for row in rows if row["type"] == "validator_requested")
+        result = next(row for row in rows if row["type"] == "validator_result")
+        self.assertEqual(requested["input"]["candidate"], "e2e4")
+        self.assertEqual(requested["input"]["history"]["moves"], [])
+        self.assertEqual(result["input"], requested["input"])
+        self.assertEqual(result["execution"]["status"], "ok")
+        self.assertEqual(result["execution"]["findings"], EMPTY)
+        self.assertEqual(result["execution"]["cpu_seconds"], 0.01)
+        self.assertEqual(result["execution"]["cleanup_seconds"], 0.005)
+        self.assertGreaterEqual(result["execution"]["artifact_check_seconds"], 0)
+        self.assertEqual(sum(row["type"] == "move_applied" for row in rows), 1)
+        self.assertEqual(json.loads((self.root / "success" / "summary.json").read_text()), summary)
+
     def test_runtime_identity_adds_artifact_without_changing_baseline_identity(self):
         manifest = {"loaded_model": {"digest": "model"}, "engine_sha256": "engine", "ollama_version": {"version": "0.34.1"},
                     "packages": {"chess": "1.11.2"}, "python": "3.12"}

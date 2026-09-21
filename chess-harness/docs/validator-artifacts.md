@@ -8,7 +8,7 @@ Activate the project environment, then run the same command on Windows, Linux
 or macOS:
 
 ```console
-python -m chess_harness.validator freeze --enable-authored-validators --development runs/validator-development/example --artifacts runs/validator-artifacts --output runs/validator-freeze-report.json
+python -m chess_harness.validator freeze --enable-authored-validators --development runs/validators/development/qwen-validator-001 --artifacts runs/validator-artifacts --output runs/validator-freeze-report.json
 ```
 
 The development directory must come from a completed, passing `validator generate`

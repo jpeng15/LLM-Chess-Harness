@@ -11,11 +11,17 @@ saved-run comparisons, independent move-quality analysis and thinking-mode
 experiments. Stage 3 begins with `--mode rules-tools`: model-directed hypothetical
 move simulation and board inspection, using chess rules without engine advice.
 The optional [LLM-authored validation-tools phase](docs/stage3-authored-validators.md)
-now has its [versioned contract, rules API, and factual witness verifier](docs/validator-contract.md).
-An [explicitly enabled isolated runner](docs/validator-sandbox.md) is also available
-for preparation checks; real Docker acceptance is pending. Normal game commands
-remain unassisted unless a `--mode` is selected. Authored-validator commands require
-`--enable-authored-validators`; game integration and frozen artifacts are pending.
+includes [bounded development](docs/validator-development.md),
+[frozen artifacts](docs/validator-artifacts.md), and an
+[optional game adapter](docs/validator-player.md) with cost reporting and live viewing.
+The [frozen comparison runner](docs/validator-experiment.md) checks held-out positions
+then compares constrained-legal, rules-tool, and authored-validator games at matched budgets.
+The [isolated runtime](docs/validator-sandbox.md) still needs real Docker acceptance
+on this machine; installation was deferred. Code and injected integration tests
+are available, but no real authored-validator chess-strength result is claimed.
+Normal game commands remain unassisted unless a `--mode` is selected.
+Authored-validator commands additionally require `--enable-authored-validators`;
+games require an explicit frozen `--validator-artifact`.
 The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 

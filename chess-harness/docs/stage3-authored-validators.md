@@ -1,11 +1,28 @@
 # Optional Stage 3 phase: LLM-authored validation tools
 
-Status: Step 1 is implemented; see the [public contract and API](validator-contract.md).
-Step 2's [opt-in runner](validator-sandbox.md) is implemented, with real Docker
-acceptance pending; runtime installation was deferred. Steps 3–7 remain planned.
-Each step is a separate implementation and acceptance-test
-phase. Existing `constrained-legal` and `rules-tools` modes remain comparison
-baselines. Game-time authored validators and rewriting code during games are unavailable.
+Status: implementation is available for the [contract and API](validator-contract.md),
+[isolated runner](validator-sandbox.md), [bounded development](validator-development.md),
+[frozen artifacts](validator-artifacts.md), and [game integration and reporting](validator-player.md).
+The [comparison runner](validator-experiment.md) predeclares held-out checks and
+the three matched game conditions. Unit and integration acceptance use injected
+model/runtime responses. **Real Docker isolation acceptance, a real Qwen-generated
+artifact and the first real frozen comparison remain pending** because runtime
+installation was deferred. These are separate acceptance milestones, not inferred
+from mocked tests. Existing `constrained-legal` and `rules-tools` modes remain
+comparison baselines. All authored functionality requires explicit opt-in.
+Rewriting functions during games remains excluded.
+
+Implementation verification on 2026-09-21: `python -m unittest discover -s tests -q`
+ran 266 Python tests (265 passed; one symlink-creation test skipped because Windows
+did not grant that privilege). `node --test tests/test_viewer_ui.cjs` passed all six
+browser-controller tests. Coverage includes bounded generation and repair, frozen
+provenance/tamper rejection, a complete injected game through the real referee,
+shared budgets, cancellation/cleanup diagnostics, failed and resumed attempts,
+cost reconciliation, safe viewer rendering, and all comparison conditions.
+Model and sandbox responses in these orchestration tests are injected; generated
+validator source is never executed on the host. A real CLI preflight on this
+machine returned `runtime_unavailable` (Docker CLI absent), confirming refusal
+without a local fallback. This is an availability check, not isolation acceptance.
 
 ## Objective and authority
 

@@ -16,7 +16,7 @@ MAX_SOURCE_BYTES = 64 * 1024
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("preflight", "run"):
+    for name in ("preflight", "run", "generate"):
         command = commands.add_parser(name)
         command.add_argument("--enable-authored-validators", action="store_true",
                              help="explicitly enable the isolated authored-validator backend")
@@ -27,6 +27,17 @@ def _parser():
         if name == "run":
             command.add_argument("--source", type=Path)
             command.add_argument("--request", type=Path)
+        elif name == "generate":
+            command.add_argument("--directory", type=Path, help="new development directory; never overwritten")
+            command.add_argument("--max-attempts", type=int, choices=range(1, 4), default=3)
+            command.add_argument("--model", default="qwen3.6:35b-a3b")
+            command.add_argument("--url", default="http://localhost:11434")
+            command.add_argument("--think", action=argparse.BooleanOptionalAction, default=False)
+            command.add_argument("--context", type=int, default=16384)
+            command.add_argument("--tokens", type=int, default=4096)
+            command.add_argument("--generation-seconds", type=int, default=180)
+            command.add_argument("--seed", type=int, default=0)
+            command.add_argument("--temperature", type=float, default=0)
     return parser
 
 
@@ -51,6 +62,16 @@ def _invoke(args):
         return {"status": "error", "reason": "input_error", "message": str(exc)}
 
     try:
+        if args.command == "generate":
+            from .validator_development import generate
+
+            return generate(args.directory, {
+                "enabled": True, "image": args.image, "docker_context": args.docker_context,
+                "max_attempts": args.max_attempts,
+                "llm": {"model": args.model, "url": args.url, "think": args.think,
+                        "context": args.context, "tokens": args.tokens, "seconds": args.generation_seconds,
+                        "seed": args.seed, "temperature": args.temperature},
+            })
         from .validator_sandbox import DockerSandbox, SandboxConfig
 
         backend = DockerSandbox(SandboxConfig(enabled=True, image=args.image,
@@ -78,6 +99,11 @@ def main(argv=None):
         parser.error("--image must be a pinned sha256:<64 lowercase hex digits> image ID")
     if args.command == "run" and (args.source is None or args.request is None):
         parser.error("run requires --source and --request")
+    if args.command == "generate":
+        if args.directory is None:
+            parser.error("generate requires --directory")
+        if not 0 < args.tokens < args.context or args.generation_seconds <= 0:
+            parser.error("generation requires positive time/tokens and tokens smaller than context")
 
     try:
         with ExitStack() as stack:
@@ -88,7 +114,7 @@ def main(argv=None):
             report = _invoke(args)
             output.write(json.dumps(report, indent=2, sort_keys=True, allow_nan=False) + "\n")
             output.flush()
-            return 0 if report.get("status") == "ok" else 1
+            return 0 if report.get("status") in ("ok", "passed") else 1
     except OSError as exc:
         print(json.dumps({"status": "error", "reason": "report_output_error", "message": str(exc)}),
               file=sys.stderr)

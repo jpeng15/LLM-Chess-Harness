@@ -1,0 +1,4 @@
+# Pure rules dependency; Docker build verifies this source archive before copying
+# its chess/__init__.py. No engine client, installer, fixture, or chess submodule
+# from the archive is copied into the runtime API directory.
+chess==1.11.2 --hash=sha256:a8b43e5678fdb3000695bdaa573117ad683761e5ca38e591c4826eba6d25bb39

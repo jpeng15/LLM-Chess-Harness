@@ -1,0 +1,14 @@
+# The build context may contain games, benchmark answers, credentials, or git
+# history. Send only the explicit runtime build inputs to the Docker daemon.
+**
+!sandbox/
+!sandbox/validator/
+!sandbox/validator/Dockerfile
+!sandbox/validator/Dockerfile.dockerignore
+!sandbox/validator/launcher.c
+!sandbox/validator/worker.py
+!sandbox/validator/requirements.txt
+!src/
+!src/chess_harness/
+!src/chess_harness/validator_contract.py
+!src/chess_harness/validator_rules.py

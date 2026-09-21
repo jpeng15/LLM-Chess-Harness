@@ -1,9 +1,11 @@
 # Optional Stage 3 phase: LLM-authored validation tools
 
 Status: Step 1 is implemented; see the [public contract and API](validator-contract.md).
-Steps 2–7 remain planned. Each step is a separate implementation and acceptance-test
+Step 2's [opt-in runner](validator-sandbox.md) is implemented, with real Docker
+acceptance pending; runtime installation was deferred. Steps 3–7 remain planned.
+Each step is a separate implementation and acceptance-test
 phase. Existing `constrained-legal` and `rules-tools` modes remain comparison
-baselines. Generated source execution and rewriting code during games are unavailable.
+baselines. Game-time authored validators and rewriting code during games are unavailable.
 
 ## Objective and authority
 

@@ -12,7 +12,10 @@ experiments. Stage 3 begins with `--mode rules-tools`: model-directed hypothetic
 move simulation and board inspection, using chess rules without engine advice.
 The optional [LLM-authored validation-tools phase](docs/stage3-authored-validators.md)
 now has its [versioned contract, rules API, and factual witness verifier](docs/validator-contract.md).
-Generated code execution and frozen validator artifacts are not implemented yet.
+An [explicitly enabled isolated runner](docs/validator-sandbox.md) is also available
+for preparation checks; real Docker acceptance is pending. Normal game commands
+remain unassisted unless a `--mode` is selected. Authored-validator commands require
+`--enable-authored-validators`; game integration and frozen artifacts are pending.
 The setup below covers
 Windows, Linux, and macOS; execution has so far been verified on Windows only.
 

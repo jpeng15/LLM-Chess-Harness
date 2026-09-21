@@ -369,7 +369,7 @@ def development_costs(attempts, *, preflight=None, preflight_seconds=None,
     warmup = model_preparation.get("warmup") if type(model_preparation) is dict else None
     preparation = {"sandbox_preflight_wall_seconds": preflight_seconds,
                    "model_preparation_wall_seconds": model_preparation_seconds,
-                   "sandbox_preflight_execution": _execution_costs(checks),
+                   "sandbox_preflight_execution": _execution_costs(checks) if type(preflight) is dict else None,
                    "warmup_prompt_tokens": _usage(warmup, "prompt_eval_count"),
                    "warmup_output_tokens": _usage(warmup, "eval_count")}
     return {"generation": generation, "development_execution": _execution_costs(executions),

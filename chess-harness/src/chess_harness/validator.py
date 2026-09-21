@@ -16,15 +16,19 @@ MAX_SOURCE_BYTES = 64 * 1024
 def _parser():
     parser = argparse.ArgumentParser(description=__doc__)
     commands = parser.add_subparsers(dest="command", required=True)
-    for name in ("preflight", "run", "generate"):
+    for name in ("preflight", "run", "generate", "freeze"):
         command = commands.add_parser(name)
         command.add_argument("--enable-authored-validators", action="store_true",
                              help="explicitly enable the isolated authored-validator backend")
-        command.add_argument("--image", help="pinned local image ID: sha256:<64 lowercase hex digits>")
-        command.add_argument("--docker-context", default="desktop-linux")
+        if name != "freeze":
+            command.add_argument("--image", help="pinned local image ID: sha256:<64 lowercase hex digits>")
+            command.add_argument("--docker-context", default="desktop-linux")
         command.add_argument("--output", type=Path,
                              help="save the invocation report to a new JSON file instead of stdout")
-        if name == "run":
+        if name == "freeze":
+            command.add_argument("--development", type=Path, help="completed, passing development directory")
+            command.add_argument("--artifacts", type=Path, help="parent directory for immutable frozen artifacts")
+        elif name == "run":
             command.add_argument("--source", type=Path)
             command.add_argument("--request", type=Path)
         elif name == "generate":
@@ -62,6 +66,10 @@ def _invoke(args):
         return {"status": "error", "reason": "input_error", "message": str(exc)}
 
     try:
+        if args.command == "freeze":
+            from .validator_artifacts import freeze
+
+            return freeze(args.development, args.artifacts, enabled=True)
         if args.command == "generate":
             from .validator_development import generate
 
@@ -93,10 +101,14 @@ def main(argv=None):
     # This gate precedes file access, backend imports, and Docker discovery.
     if not args.enable_authored_validators:
         parser.error("Authored validators are disabled; explicitly pass --enable-authored-validators")
-    if args.image is None:
-        parser.error("--image is required when authored validators are enabled")
-    if not re.fullmatch(r"sha256:[0-9a-f]{64}", args.image):
-        parser.error("--image must be a pinned sha256:<64 lowercase hex digits> image ID")
+    if args.command == "freeze":
+        if args.development is None or args.artifacts is None:
+            parser.error("freeze requires --development and --artifacts")
+    else:
+        if args.image is None:
+            parser.error("--image is required when authored validators are enabled")
+        if not re.fullmatch(r"sha256:[0-9a-f]{64}", args.image):
+            parser.error("--image must be a pinned sha256:<64 lowercase hex digits> image ID")
     if args.command == "run" and (args.source is None or args.request is None):
         parser.error("run requires --source and --request")
     if args.command == "generate":
